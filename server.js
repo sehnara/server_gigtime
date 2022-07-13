@@ -7,6 +7,9 @@ const nodeGeocoder = require('node-geocoder');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+/* console.log depth에 필요 */
+let util = require('util');
+
 /* 구글 map api */
 const options = {
   provider: 'google',
@@ -259,14 +262,15 @@ app.post('/worker/suggestion', (req, res) => {
                   (SELECT FK_qualifications_stores FROM qualifications 
                     WHERE FK_qualifications_workers=?))`;
   con.query(sql, [req.body['work_date'], req.body['start_times'], req.body['worker_id']], function(err, result, field) {
-    console.log(result);
+    console.log('모든 개수: ' + result.length);
     suggestion(req.body['worker_id'], result, req.body['start_times']);
   })
 })
 
+/* suggestion 함수 */
+/* 이때, 거리 상관 없이 모든 hourly_order가 들어온다 */
 function suggestion(worker_id, hourly_orders, start_times)
 {
-  console.log(worker_id);
   const sql = "SELECT `range`, `latitude`, `longitude` FROM workers WHERE worker_id=?"
   con.query(sql, worker_id, function(err, result, field) {
     let range = result[0]['range'];
@@ -274,13 +278,28 @@ function suggestion(worker_id, hourly_orders, start_times)
     let longitude = result[0]['longitude'];
     let n = start_times.length;
 
-    /* 우선, range 이내의 hourly_order만 가져오자. 지금은 권한 있는 모든 hourly_order이 들어와 있다. */
-    getStore()
+    /* 우선, range 이내의 hourly_order를 가져오자. */
+    let hourly_orders_sliced = getInnerRange(latitude, longitude, range, hourly_orders);
+    console.log('유효 개수: ' + hourly_orders_sliced.length);
+    console.log(hourly_orders_sliced);
 
-    for (let i = 0; i < n; i++) {
-
-
+    /* 이제 들어온 시간 별로 나눠야 한다. */
+    let hourly_orders_divided_by_start_time = {};
+    for (let i = 0; i < n; i++) 
+    {
+      let tmp = new Date(start_times[i]);
+      hourly_orders_divided_by_start_time[tmp] = Array();
     }
+    console.log(hourly_orders_divided_by_start_time);
+
+    for (let i = 0; i < hourly_orders_sliced.length; i++)
+    {
+      let tmp = new Date(hourly_orders_sliced[i]['start_time']);
+      hourly_orders_divided_by_start_time[tmp].push(hourly_orders_sliced[i]);
+    }
+
+    console.log(hourly_orders_divided_by_start_time);
+    
   })
 }
 
@@ -306,13 +325,28 @@ app.post('/store/list', (req, res) => {
             if (err) throw err;
             
             /* 거리 계산해서 send할 배열 생성 */
-            let stores = getStore(worker_info, stores_info);
+            let stores = getStore(worker_info[0]['latitude'], worker_info[0]['longitude'], worker_info[0]['range'], stores_info);
             console.log(stores);
             
             res.send(stores);
         })
     });
 });
+
+/* 주소 정보 전달 받아서 store table update
+  data form === 
+  {
+    'FK_stores_owners': 2, 
+    'location': '서울시 관악구 성현동'
+  } */
+  app.post('/store/address/update', getPos, (req, res) => {
+    console.log(req.body);
+    const sql = "UPDATE stores SET address=?, latitude=?, longitude=? WHERE FK_stores_owners=?";
+    con.query(sql, [req.body['location'], req.body['latitude'], req.body['longitude'], req.body['FK_stores_owners']], function(err, result, field) {
+        if (err) throw err;
+        res.send('success');
+    })
+})
 
 /********************************************************
  *                        owner                         *
@@ -368,7 +402,7 @@ app.post('/owner/signup', (req, res) => {
  *******************************************************/ 
 
 /* worker가 설정한 반경 이내의 가게 정보를 return */
-function getStore(worker_info, stores_info) {
+function getStore(latitude, longitude, range, stores_info) {
   const n = stores_info.length;
   let answer = new Array();
   let tmp = 0;
@@ -376,11 +410,28 @@ function getStore(worker_info, stores_info) {
   /* 이렇게 짜면 너무 너무 비효율적이다 */
   /* db 구조를 바꿔야 하나? 아니면, 탐색 방식을 개선? */
   for (let i = 0; i < n; i++) {
-      tmp = getDistance(worker_info[0]['latitude'], worker_info[0]['longitude'], stores_info[i]['latitude'], stores_info[i]['longitude']);
-      console.log('tmp: ' + tmp);
-      if (tmp <= worker_info[0]['range']) {
+      tmp = getDistance(latitude, longitude, stores_info[i]['latitude'], stores_info[i]['longitude']);
+      if (tmp <= range) {
           stores_info[i]['distance'] = tmp;
           answer.push(stores_info[i]);
+      }
+  }
+
+  return answer;
+}
+
+/* 현재위치에서 range 이내인 info 원소만 뽑아서 return */
+function getInnerRange(latitude, longitude, range, info) {
+  const n = info.length;
+  let answer = new Array();
+  let tmp = 0;
+
+  /* 이렇게 짜면 너무 너무 비효율적이다 */
+  /* db 구조를 바꿔야 하나? 아니면, 탐색 방식을 개선? */
+  for (let i = 0; i < n; i++) {
+      tmp = getDistance(latitude, longitude, info[i]['latitude'], info[i]['longitude']);
+      if (tmp <= range) {
+          answer.push(info[i]);
       }
   }
 
@@ -463,7 +514,6 @@ function getDistance(lat1, lon1, lat2, lon2) {
 /* 두 좌표 간 거리 구하기 */
 /* 미들웨어 사용 (맞나?) */
 async function getPos(req, res, next) {
-  console.log('abc');
   const regionLatLongResult = await geocoder.geocode(req.body['location']);
   const Lat = regionLatLongResult[0].latitude; //위도
   const Long =  regionLatLongResult[0].longitude; //경도

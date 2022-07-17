@@ -9,6 +9,7 @@ const PORT = process.env.PORT || 4000;
 
 /* console.log depth에 필요 */
 let util = require('util');
+const { send } = require("process");
 // const { off } = require("process");
 
 /* 구글 map api */
@@ -45,34 +46,51 @@ app.get("/", (req, res) => {
   res.send({ hello: "Hello react" });
 });
 
-/* 이미 가입된 email인지 체크 */
-/* 
-	data form: 
+/* 이미 가입된 email인지 체크 
+	input
   {
     'email': 'dngp93@gmail.com'
   }
-*/
-app.post('/check/member', (req, res) => {
-  /* 우선 owners db 확인 (더 적으니까) */
-  const sql = `SELECT * FROM owners WHERE email=?`;
-  con.query(sql, req.body['email'], function(err, result, field) {
-      if (result.length === 0)
-      {
-          /* owners에 없으니 workers 확인 */
-          const sql2 = `SELECT * FROM workers WHERE email=?`;
-          con.query(sql2, req.body['email'], function(err, result2, field) {
-              if (result2.length === 0) res.send('NONE');
-              else res.send('worker');
-          })
-      }
-      else res.send('owner');
-  })
+  output
+    'owner' or 'worker' or 'NONE' */ 
+
+/* owners 테이블 체크 */
+app.post('/check/member', async (req, res, next) => {
+  if (await checkOwner(req.body['email']) > 0) {
+    const con = await pool.getConnection(async conn => conn);
+    const sql = `SELECT owner_id FROM owners WHERE email=${req.body['email']}`
+    const [result] = await con.query(sql);
+    let send_array = ['owner', result[0]['owner_id']]
+    res.send(send_array);
+  }
+  else 
+    next();
 });
+
+/* workers 테이블 체크 */
+app.use('/check/member', async (req, res) => {
+  if (await checkWorker(req.body['email']) > 0) {
+    const con = await pool.getConnection(async conn => conn);
+    const sql = "SELECT worker_id, `range`, location FROM workers WHERE email=?"
+    const [result] = await con.query(sql, req.body['email']);
+    let send_array = {
+      'member_type': 'worker', 
+      'worker_id': result[0]['worker_id'], 
+      'address': result[0]['location'],
+      'range': result[0]['range']
+    }
+    res.send(send_array);
+  }
+  else 
+    res.send(['NONE'])
+});
+
 
 /********************************************************
  *                        worker                        *
  *******************************************************/ 
 
+/*  */
 /* name, email 정보 전달 받아서 worker table에 insert 
   data form === 
   {
@@ -81,39 +99,43 @@ app.post('/check/member', (req, res) => {
 		'location': '서울시 관악구 성현동 블라블라',
 		'range': 234
   } */
-    app.post('/worker/signup', getPos, (req, res) => {
-      console.log(req.body);
-      const sql = "INSERT INTO workers SET ?";
-  
-      con.query(sql, req.body, function(err, result, field) {
-          if (err) throw err;
-          console.log(result);
 
-          const sql2 = "SELECT worker_id FROM workers WHERE email=?";
-          con.query(sql2, req.body['email'], function(err, result2, field){
-            if (err) throw err;
-            /* signup 결과로 worker_id send */
-            res.send(result2[0]['worker_id'].toString());
-          })
-      })
-  })
+/* 1. workers 테이블에 INSERT */
+app.post('/worker/signup', getPos, async (req, res, next) => {
+  const con = await pool.getConnection(async conn => conn);
+  const sql = "INSERT INTO workers SET ?";
+  await con.query(sql, req.body);
+  next();
+})
+
+/* 2. workers 테이블에서 email로 worker_id 찾아서 send */
+app.use('/worker/signup', async (req, res) => {
+  const con = await pool.getConnection(async conn => conn);
+  const sql = "SELECT worker_id FROM workers WHERE email=?";
+  const [result] = await con.query(sql, req.body['email']);
+  res.send(result[0]['worker_id'].toString())
+})
 
 /* worker의 email을 받아서 id를 return */
 /*
-  data form
+  input
   {
     'email': 'dngp93@gmail.com'
   }
+  output
+  1
 */
-app.post('/worker/id', (req, res) => {
+app.post('/worker/id', async (req, res) => {
+  const con = await pool.getConnection(async conn => conn);
   const sql = "SELECT worker_id FROM workers WHERE email=?";
 
-  con.query(sql, req.body['email'], function(err, result, field){
-    if (err) throw err;
+  const [result] = await con.query(sql, req.body['email'])
+  try {
     res.send(result[0]['worker_id'].toString());
-  })
+  } catch {
+    res.send('error');
+  }
 })
-
 
 /* 주소 정보 전달 받아서 worker table update
   data form === 
@@ -121,12 +143,15 @@ app.post('/worker/id', (req, res) => {
     'email': 'dngp93@gmail.com', 
     'location': '서울시 관악구 성현동'
   } */
-app.post('/worker/location/update', getPos, (req, res) => {
+app.post('/worker/location/update', getPos, async (req, res) => {
+  const con = await pool.getConnection(async conn => conn);
   const sql = "UPDATE workers SET location=?, latitude=?, longitude=? WHERE email=?";
-  con.query(sql, [req.body['location'], req.body['latitude'], req.body['longitude'], req.body['email']], function(err, result, field) {
-      if (err) throw err;
-      res.send('success');
-  })
+  try {
+    await con.query(sql, [req.body['location'], req.body['latitude'], req.body['longitude'], req.body['email']])
+    res.send('success');
+  } catch {
+    res.send('error');
+  }
 })
 
 /* 거리 정보 전달 받아서 worker table update
@@ -135,33 +160,39 @@ app.post('/worker/location/update', getPos, (req, res) => {
     'worker_id': 1, 
     'range': 424
   } */
-app.post('/worker/range/update', (req, res) => {
-    const sql = "UPDATE workers SET range=? WHERE worker_id=?";
-    con.query(sql, req.body, function(err, result, field) {
-        if (err) throw err;
-        console.log(result);
-        res.send('success');
-    })
+app.post('/worker/range/update', async (req, res) => {
+  const con = await pool.getConnection(async conn => conn);
+  const sql = "UPDATE workers SET range=? WHERE worker_id=?";
+  try {
+    await con.query(sql, req.body);
+    res.send('success');
+  } catch {
+    res.send('error');
+  }
 })
 
 /* worker의 location 정보 send */
-app.post('/worker/location', (req, res) => {
-    const sql = "SELECT `location` FROM workers WHERE email=?";
-    con.query(sql, req.body['email'], function(err, result, field) {
-        if (err) throw err;
-        console.log(result);
-        res.send(result[0]['location']);
-    }) 
+app.post('/worker/location', async (req, res) => {
+  const con = await pool.getConnection(async conn => conn);
+  const sql = "SELECT `location` FROM workers WHERE email=?";
+  try {
+    const [result] = await con.query(sql, req.body['email']);
+    res.send(result[0]['location']); 
+  } catch {
+    res.send('error');
+  }
 });
 
 /* worker의 range 정보 send */
-app.post('/worker/range', (req, res) => {
-    const sql = "SELECT `range` FROM workers WHERE email=?";
-    con.query(sql, req.body['email'], function(err, result, field) {
-        if (err) throw err;
-        console.log(result);
-        res.send(result[0]['range'].toString()); // string 형태로만 통신 가능
-    }) 
+app.post('/worker/range', async (req, res) => {
+  const con = await pool.getConnection(async conn => conn);
+  const sql = "SELECT `range` FROM workers WHERE email=?";
+  const [result] = await con.query(sql, req.body['email'])
+  try {
+    res.send(result[0]['range'].toString()); // string 형태로만 통신 가능
+  } catch {
+    res.send('error');
+  }
 });
 
 /* 알바 예약 페이지 */
@@ -172,22 +203,33 @@ app.post('/worker/range', (req, res) => {
   'work_date': '2022-08-20 00:00:000Z', 
   'type': '설거지'
 } */
-app.post('/worker/reservation/list', (req, res) => {
-    
-    let work_date = masageDateToYearMonthDay(req.body['work_date']);
-    console.log(work_date);
-
-    const sql = "SELECT job_id FROM jobs WHERE type=?"
-    con.query(sql, req.body['type'], function(err, result, field) {
-        const sql2 = `SELECT hourlyorders_id, dynamic_price, min_price, max_price, start_time FROM hourly_orders A
-                        INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id
-                        WHERE order_id=? AND work_date=? AND FK_orders_jobs=?`
-        con.query(sql2, [req.body['order_id'],work_date,result[0]['job_id']], function(err, result2, field) {
-            res.send(result2);
-        })
-    })
+app.post('/worker/reservation/list', async (req, res, next) => {
+  console.log(req.body);
+  const con = await pool.getConnection(async conn => conn);
+  const sql = "SELECT job_id FROM jobs WHERE type=?"
+  req.body['work_date'] = masageDateToYearMonthDay(req.body['work_date']);
+  try {
+    const [result] = await con.query(sql, req.body['type'])
+    req.body['job_id'] = result[0]['job_id'];
+    next();
+  } catch {
+    res.send('error');
+  }
 })
 
+app.use('/worker/reservation/list', async (req, res) => {
+  const con = await pool.getConnection(async conn => conn);
+  const sql = `SELECT hourlyorders_id, dynamic_price, min_price, start_time FROM hourly_orders A
+                      INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id
+                      WHERE order_id=? AND work_date=? AND FK_orders_jobs=?`;
+  try{
+    const [result] = await con.query(sql, [req.body['order_id'],req.body['work_date'],req.body['job_id']])
+    console.log(result);
+    res.send(result)
+  } catch {
+    res.send('error');
+  }
+})
 
 
 /* 알바 예약 페이지 */
@@ -198,20 +240,21 @@ app.post('/worker/reservation/list', (req, res) => {
     'worker_id': 2, 
     'hourlyorders_id': [5, 6, 7, 8, 9]
 } */
-app.post('/worker/reservation/save', (req, res) => {
-    console.log(req.body);
-    const sql = "UPDATE hourly_orders SET FK_hourlyorders_workers=?, closing_time=? WHERE hourlyorders_id=?";
-    console.log(req.body['hourlyorder_id'].length-1);
-    for (let i = 0; i < req.body['hourlyorder_id'].length; i++) {
-        let tmp = new Date().getTime();
-        let timestamp = new Date(tmp);
-        con.query(sql, [req.body['worker_id'], timestamp, req.body['hourlyorder_id'][i]], function(err, result, field){
-            if (err) throw err;
-            /* 수정필요. 이렇게 매 번 확인할 필요 없다. 끝나고 한 번만 하는 방법은? */
-            check_all_hourlyorders_true(req.body['hourlyorder_id'][0]);
-        })
-    }
-    res.send('success');
+app.post('/worker/reservation/save', async (req, res) => {
+  console.log(req.body)
+  const con = await pool.getConnection(async conn => conn);
+  const sql = "UPDATE hourly_orders SET FK_hourlyorders_workers=?, closing_time=? WHERE hourlyorders_id=?";
+
+  for (let i = 0; i < req.body['hourlyorder_id'].length; i++) {
+    let tmp = new Date().getTime();
+    let timestamp = new Date(tmp);
+    /* check! 쿼리를 한 번만 실행해서 해당 column 모두 UPDATE 하는 방법은? */
+    console.log('아깐 잘 됐는데')
+    await con.query(sql, [req.body['worker_id'], timestamp, req.body['hourlyorder_id'][i]]); 
+    console.log('왜이래?')
+  }
+  check_all_hourlyorders_true(req.body['hourlyorder_id'][0]);
+  res.send('success');
 })
 
 /* 알바 모집 정보 return (지정 거리 이내)
@@ -219,29 +262,37 @@ app.post('/worker/reservation/save', (req, res) => {
   {
     'worker_id': 1
   } */
-app.post('/worker/show/hourly_orders', (req, res) => {
-    /* 다음으로, 해당 order에 해당하는 hourly_order 가져오기. */
-    // FK_hourlyorders_workers === NULL인 것만.
-    const sql = `SELECT * FROM hourly_orders A 
-                    INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id 
-                    INNER JOIN stores C ON B.FK_orders_stores = C.store_id 
-                    INNER JOIN jobs D ON B.FK_orders_jobs = D.job_id
-                    WHERE FK_hourlyorders_orders IN 
-                    (SELECT order_id FROM orders 
-                        WHERE FK_orders_stores IN 
-                        (SELECT store_id FROM stores WHERE store_id IN 
-                            (SELECT FK_qualifications_stores FROM qualifications 
-                                WHERE FK_qualifications_workers=?)) AND status=0)`
-    con.query(sql, req.body['worker_id'], function(err, valid_hourly_orders, field) {
-        if (err) throw err;
-        console.log(valid_hourly_orders);
-        /* worker의 latitude, longitude 가져오기 */
-        const sql2 = `SELECT latitude, longitude FROM workers WHERE worker_id=?`;
-        con.query(sql2, req.body['worker_id'], function(err, result, field) {
-            res.send(masage_data(result[0]['latitude'], result[0]['longitude'], valid_hourly_orders));
-        });
-    });
-    console.log();
+app.post('/worker/show/hourly_orders', async (req, res, next) => {
+  console.log(req.body);
+  const con = await pool.getConnection(async conn => conn);
+  /* 1. 해당 order에 해당하는 hourly_order 가져오기. */
+  // FK_hourlyorders_workers === NULL인 것만.
+  const sql = `SELECT * FROM hourly_orders A 
+                  INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id 
+                  INNER JOIN stores C ON B.FK_orders_stores = C.store_id 
+                  INNER JOIN jobs D ON B.FK_orders_jobs = D.job_id
+                  WHERE FK_hourlyorders_orders IN 
+                  (SELECT order_id FROM orders 
+                      WHERE FK_orders_stores IN 
+                      (SELECT store_id FROM stores WHERE store_id IN 
+                          (SELECT FK_qualifications_stores FROM qualifications 
+                              WHERE FK_qualifications_workers=?)) AND status=0)`
+  try {
+    const [valid_hourly_orders] = await con.query(sql, req.body['worker_id']);
+    req.body['valid_hourly_orders'] = valid_hourly_orders;
+    next();
+  } catch {
+    res.send('error');
+  }  
+});
+
+/* 2. worker의 latitude, longitude 가져오기 */
+app.use('/worker/show/hourly_orders', async (req, res) => {
+  const con = await pool.getConnection(async conn => conn);
+  const sql = `SELECT latitude, longitude FROM workers WHERE worker_id=?`;
+  const [result] = await con.query(sql, req.body['worker_id']);
+  console.log('서버 들어옴');
+  res.send(masage_data(result[0]['latitude'], result[0]['longitude'], req.body['valid_hourly_orders']));
 });
 
 /* 최적의 알바 추천 */
@@ -258,7 +309,8 @@ app.post('/worker/show/hourly_orders', (req, res) => {
       ]
   }
 */
-app.post('/worker/suggestion', (req, res) => {
+app.post('/worker/suggestion', async (req, res) => {
+  const con = await pool.getConnection(async conn => conn);
   /* 
     hourly_orders 테이블고 orders 테이블을 JOIN 한 후, 
     work_date와 worker_id, start_time 그리고 worker가 권한을 가지고 있는 store로 필터하여 SELECT
@@ -271,211 +323,182 @@ app.post('/worker/suggestion', (req, res) => {
                 (SELECT store_id FROM stores WHERE store_id IN 
                   (SELECT FK_qualifications_stores FROM qualifications 
                     WHERE FK_qualifications_workers=?))`;
-  con.query(sql, [req.body['work_date'], req.body['start_times'], req.body['worker_id']], function(err, result, field) {
+  const [result] = await con.query(sql, [req.body['work_date'], req.body['start_times'], req.body['worker_id']]);
     // console.log('모든 개수: ' + result.length);
-    suggestion(req.body['worker_id'], result, req.body['start_times']);
-  })
+  suggestion(req.body['worker_id'], result, req.body['start_times']);
 })
 
 /* bruteforce 방식의 suggestion 함수 */
 /* 이때, 거리 상관 없이 모든 hourly_order가 들어온다 */
-function suggestion(worker_id, hourly_orders, start_times)
+async function suggestion(worker_id, hourly_orders, start_times)
 {
+  const con = await pool.getConnection(async conn => conn);
   const sql = "SELECT `range`, `latitude`, `longitude` FROM workers WHERE worker_id=?"
-  con.query(sql, worker_id, function(err, result, field) {
-    let range = result[0]['range'];
-    let latitude = result[0]['latitude'];
-    let longitude = result[0]['longitude'];
-    let times_count = start_times.length;
-
-    /* 우선, range 이내의 hourly_order를 가져오자. */
-    let hourly_orders_sliced = getInnerRange(latitude, longitude, range, hourly_orders);
-    // console.log('총 개수: ' + hourly_orders_sliced.length);
-    // console.log(hourly_orders_sliced);
-
-    /* 이제 들어온 시간 별로 나눠야 한다. */
-    let hourly_orders_divided_by_start_time = {};
-    for (let i = 0; i < times_count; i++) 
-    {
-      let tmp = new Date(start_times[i]);
-      hourly_orders_divided_by_start_time[tmp] = Array();
-    }
-    // console.log(hourly_orders_divided_by_start_time);
-
-    /* 각 시간에 해당하는 hourorders_id를 모두 push. min_price와 함께 */
-    /* 여기서 idx와 id의 연결 관계를 만들어주자 */
-    let id_idx = {};
-    for (let i = 0; i < hourly_orders_sliced.length; i++)
-    {
-      let tmp = new Date(hourly_orders_sliced[i]['start_time']);
-      hourly_orders_divided_by_start_time[tmp].push({
-        'idx': i,
-        'id': hourly_orders_sliced[i]['hourlyorders_id'],
-        'price': hourly_orders_sliced[i]['min_price']
-      });
-      id_idx[hourly_orders_sliced[i]['hourlyorders_id']] = i;
-    }
+  const [result] = await con.query(sql, worker_id); 
+  let range = result[0]['range'];
+  let latitude = result[0]['latitude'];
+  let longitude = result[0]['longitude'];
+  let times_count = start_times.length;
     
-    /* 이제 각 시간별로 min_price 순으로 정렬하자, 앞에 올수록 가격이 높아지도록 */
-    /* 최초의 optimal은 각 시간대별로 최대의 price로 조합 */
-    // 참고로, hourly_orders_sliced 이 안에 다 있다.
-    let optimal = Array();
-    for (let i = 0; i < times_count; i++) {
-      let tmp = new Date(start_times[i]);
-      hourly_orders_divided_by_start_time[tmp].sort(function(a, b) {
-        var price_A = a.price;
-        var price_B = b.price;
+  /* 우선, range 이내의 hourly_order를 가져오자. */
+  let hourly_orders_sliced = getInnerRange(latitude, longitude, range, hourly_orders);
+  // console.log('총 개수: ' + hourly_orders_sliced.length);
+  // console.log(hourly_orders_sliced);
+
+  /* 이제 들어온 시간 별로 나눠야 한다. */
+  let hourly_orders_divided_by_start_time = {};
+  for (let i = 0; i < times_count; i++) 
+  {
+    let tmp = new Date(start_times[i]);
+    hourly_orders_divided_by_start_time[tmp] = Array();
+  }
+  // console.log(hourly_orders_divided_by_start_time);
+
+  /* 각 시간에 해당하는 hourorders_id를 모두 push. min_price와 함께 */
+  /* 여기서 idx와 id의 연결 관계를 만들어주자 */
+  let id_idx = {};
+  for (let i = 0; i < hourly_orders_sliced.length; i++)
+  {
+    let tmp = new Date(hourly_orders_sliced[i]['start_time']);
+    hourly_orders_divided_by_start_time[tmp].push({
+      'idx': i,
+      'id': hourly_orders_sliced[i]['hourlyorders_id'],
+      'price': hourly_orders_sliced[i]['min_price']
+    });
+    id_idx[hourly_orders_sliced[i]['hourlyorders_id']] = i;
+  }
   
-        if (price_A < price_B) return 1;
-        if (price_A > price_B) return -1;
-        return 0;
-      })
-      optimal.push(hourly_orders_divided_by_start_time[tmp][0]['idx']);
-    }
+  /* 이제 각 시간별로 min_price 순으로 정렬하자, 앞에 올수록 가격이 높아지도록 */
+  // 참고로, hourly_orders_sliced 이 안에 다 있다.
+  for (let i = 0; i < times_count; i++) {
+    let tmp = new Date(start_times[i]);
+    hourly_orders_divided_by_start_time[tmp].sort(function(a, b) {
+      var price_A = a.price;
+      var price_B = b.price;
+
+      if (price_A < price_B) return 1;
+      if (price_A > price_B) return -1;
+      return 0;
+    })
+  }
+
+  /* 재귀 방식 - dp 코드 추가 전이라 안돌아감 */
+  // let max = recur(0, start_times, latitude, longitude, hourly_orders_divided_by_start_time, hourly_orders_sliced, 0);
+
+  /* 완성된 방식 - 브루트포스 + dp */
+  let queue = Array(); // [depth, latitude, longitude, revenue, visit, total_move]
+  let key = new Date(start_times[0]);
+  for (let i = 0; i < hourly_orders_divided_by_start_time[key].length; i++) {
+    let short = hourly_orders_divided_by_start_time[key][i];
+    let move_first = getDistance(latitude, 
+                                  longitude, 
+                                  hourly_orders_sliced[short['idx']]['latitude'],
+                                  hourly_orders_sliced[short['idx']]['longitude']);
+    queue.push([1, 
+                hourly_orders_sliced[short['idx']]['latitude'],
+                hourly_orders_sliced[short['idx']]['longitude'],
+                short['price'] - move_first * 2.5,
+                [short['id']],
+                move_first]); // 비트마스킹으로 하자
+  }
     
-    // console.log(hourly_orders_divided_by_start_time);
+  let answer = 0;
+  let answer_move = 0;
+  let answer_visit = [];
+  let dp = {};
+
+  /* 터미널에 보기 좋게 출력 */
+  console.log();
+  console.log("**************************************")
+  console.log("*                                    *")
+  console.log("*            알바시간표추천          *")
+  console.log("*                                    *")
+  console.log('*          근로일시: 2022-08-20      *');
+  console.log('*          모집시간: ' + start_times.length + '시간          *');
+  console.log("*                                    *")
+  console.log("**************************************")
+  console.log()
+  console.log();
+  console.log('------------- 추천 시작 -------------')
+  while (queue.length > 0) 
+  {
+    let now = queue.shift(); // popleft
+    let depth = now[0];
+    let latitude = now[1];
+    let longitude = now[2];
+    let revenue = now[3];
+    let visit = Object.assign(Array(), now[4]);
+    // visit.push(now[4]);
+    let total_move = now[5];
     
-    /* 현재 optimal의 가치는? */
-    /* 우선 시급의 총합을 구하자. */
-    let sum_of_price = 0;
-    for (let i = 0; i < times_count; i++) {
-      sum_of_price += hourly_orders_sliced[optimal[i]]['min_price'];
-    }
-
-    /* 다음으로, 이동 거리의 총합을 구하자. */
-    let sum_of_walk = getDistance(
-                  latitude, 
-                  longitude, 
-                  hourly_orders_sliced[optimal[0]]['latitude'],
-                  hourly_orders_sliced[optimal[0]]['longitude']);
-
-    for (let i = 0; i < times_count - 1; i++) {
-      sum_of_walk += getDistance(
-                  hourly_orders_sliced[optimal[i]]['latitude'],
-                  hourly_orders_sliced[optimal[i]]['longitude'],
-                  hourly_orders_sliced[optimal[i+1]]['latitude'],
-                  hourly_orders_sliced[optimal[i+1]]['longitude'])
-      // console.log(sum_of_walk + ' ' + hourly_orders_sliced[optimal[i+1]]['name']);
-    }
-
-    /* 재귀 방식 - dp 코드 추가 전이라 안돌아감 */
-    // let max = recur(0, start_times, latitude, longitude, hourly_orders_divided_by_start_time, hourly_orders_sliced, 0);
-
-    /* 완성된 방식 - 브루트포스 + dp */
-    let queue = Array(); // [depth, latitude, longitude, revenue, visit, total_move]
-    let key = new Date(start_times[0]);
-    for (let i = 0; i < hourly_orders_divided_by_start_time[key].length; i++) {
-      let short = hourly_orders_divided_by_start_time[key][i];
-      let move_first = getDistance(latitude, 
-                                   longitude, 
-                                   hourly_orders_sliced[short['idx']]['latitude'],
-                                   hourly_orders_sliced[short['idx']]['longitude']);
-      queue.push([1, 
-                  hourly_orders_sliced[short['idx']]['latitude'],
-                  hourly_orders_sliced[short['idx']]['longitude'],
-                  short['price'] - move_first * 2.5,
-                  [short['id']],
-                  move_first]); // 비트마스킹으로 하자
-    }
-    
-    let answer = 0;
-    let answer_move = 0;
-    let answer_visit = [];
-    let dp = {};
-
-    /* 터미널에 보기 좋게 출력 */
-    console.log();
-    console.log("**************************************")
-    console.log("*                                    *")
-    console.log("*            알바시간표추천          *")
-    console.log("*                                    *")
-    console.log('*          근로일시: 2022-08-20      *');
-    console.log('*          모집시간: ' + start_times.length + '시간          *');
-    console.log("*                                    *")
-    console.log("**************************************")
-    console.log()
-    console.log();
-    console.log('------------- 추천 시작 -------------')
-    while (queue.length > 0) 
+    /* 탈출 조건 */
+    if (depth === times_count)
     {
-      let now = queue.shift(); // popleft
-      let depth = now[0];
-      let latitude = now[1];
-      let longitude = now[2];
-      let revenue = now[3];
-      let visit = Object.assign(Array(), now[4]);
-      // visit.push(now[4]);
-      let total_move = now[5];
-      
-      /* 탈출 조건 */
-      if (depth === times_count)
-      {
-        if (answer < revenue) {
-          let before = answer;
-          answer = revenue;
-          answer_move = total_move;
-          answer_visit = Object.assign(Array(), visit);
-          if (before > 0)
-            console.log('   ' + answer + '원     -->     ' + (answer-before) + '원 증가!');
-          else
-            console.log('   ' + answer + '원');
-        }
-        continue;
-      }
-
-      let key = new Date(start_times[depth]);
-      let len = hourly_orders_divided_by_start_time[key].length;
-
-      for (let i = 0; i < len; i++) {
-        let short = hourly_orders_divided_by_start_time[key][i];
-        let next_latitude = hourly_orders_sliced[short['idx']]['latitude'];
-        let next_longitude = hourly_orders_sliced[short['idx']]['longitude'];
-        let next_visit = Object.assign(Array(), visit);
-        /* 거리를 계산하자 */
-        let move = getDistance(latitude, 
-                               longitude,
-                               next_latitude,
-                               next_longitude);
-        
-        /* 다음 revenue를 계산하자 */
-        let next_revenue = revenue + short['price'] - move * 2.5;
-
-        /* dp 값 업데이트 및 continue 처리 */
-        if (!dp.hasOwnProperty([depth, i]))
-          dp[[depth, i]] = next_revenue;
+      if (answer < revenue) {
+        let before = answer;
+        answer = revenue;
+        answer_move = total_move;
+        answer_visit = Object.assign(Array(), visit);
+        if (before > 0)
+          console.log('   ' + answer + '원     -->     ' + (answer-before) + '원 증가!');
         else
-        {
-          if (dp[[depth, i]] > next_revenue) continue;
-          else dp[[depth, i]] = next_revenue;
-        }
-
-        /* visit 처리 */
-        next_visit.push(short['id']);
-        
-        /* queue에 삽입 */ 
-        // [depth, latitude, longitude, revenue, visit]
-        queue.push([depth+1, 
-                    next_latitude,
-                    next_longitude,
-                    next_revenue,
-                    next_visit,
-                    total_move+move]);
-        
+          console.log('   ' + answer + '원');
       }
+      continue;
     }
-    console.log();
-    console.log('------------- 추천 결과 -------------')
-    console.log('1. 최고수익: ' + answer + '원');
-    console.log('2. 이동거리: ' + answer_move + 'm');
-    console.log('3. 방문순서');
 
-    
-    for (let i = 0; i < answer_visit.length; i++)
-    {
-      let idx = id_idx[answer_visit[i]];
-      console.log('   ' + start_times[i] + ' -- ' + hourly_orders_sliced[idx]['name']);
+    let key = new Date(start_times[depth]);
+    let len = hourly_orders_divided_by_start_time[key].length;
+
+    for (let i = 0; i < len; i++) {
+      let short = hourly_orders_divided_by_start_time[key][i];
+      let next_latitude = hourly_orders_sliced[short['idx']]['latitude'];
+      let next_longitude = hourly_orders_sliced[short['idx']]['longitude'];
+      let next_visit = Object.assign(Array(), visit);
+      /* 거리를 계산하자 */
+      let move = getDistance(latitude, 
+                              longitude,
+                              next_latitude,
+                              next_longitude);
+      
+      /* 다음 revenue를 계산하자 */
+      let next_revenue = revenue + short['price'] - move * 2.5;
+
+      /* dp 값 업데이트 및 continue 처리 */
+      if (!dp.hasOwnProperty([depth, i]))
+        dp[[depth, i]] = next_revenue;
+      else
+      {
+        if (dp[[depth, i]] > next_revenue) continue;
+        else dp[[depth, i]] = next_revenue;
+      }
+
+      /* visit 처리 */
+      next_visit.push(short['id']);
+      
+      /* queue에 삽입 */ 
+      // [depth, latitude, longitude, revenue, visit]
+      queue.push([depth+1, 
+                  next_latitude,
+                  next_longitude,
+                  next_revenue,
+                  next_visit,
+                  total_move+move]);
+      
     }
-  })
+  }
+  console.log();
+  console.log('------------- 추천 결과 -------------')
+  console.log('1. 최고수익: ' + answer + '원');
+  console.log('2. 이동거리: ' + answer_move + 'm');
+  console.log('3. 방문순서');
+
+  
+  for (let i = 0; i < answer_visit.length; i++)
+  {
+    let idx = id_idx[answer_visit[i]];
+    console.log('   ' + start_times[i] + ' -- ' + hourly_orders_sliced[idx]['name']);
+  }
 }
 
 
@@ -488,25 +511,24 @@ function suggestion(worker_id, hourly_orders, start_times)
   {
     'worker_id': 1
   } */
-app.post('/store/list', (req, res) => {
-    const sql = "SELECT `latitude`, `longitude`, `range` FROM workers WHERE worker_id=?";
-    /* 해당 worker의 위도, 경도, 거리 설정 정보 가져오기 */
-    con.query(sql, req.body['worker_id'], function(err, worker_info, field){
-        if (err) throw err;
-        
-        /* store 정보 모두 가져오기 */
-        // 내게 권한 없는 정보만 가져와야 한다. 어떻게?
-        const sql2 = "SELECT * FROM stores WHERE store_id NOT IN (SELECT FK_qualifications_stores FROM qualifications WHERE FK_qualifications_workers=?)";
-        con.query(sql2, req.body['worker_id'], function(err, stores_info, field) {
-            if (err) throw err;
-            
-            /* 거리 계산해서 send할 배열 생성 */
-            let stores = getStore(worker_info[0]['latitude'], worker_info[0]['longitude'], worker_info[0]['range'], stores_info);
-            console.log(stores);
-            
-            res.send(stores);
-        })
-    });
+app.post('/store/list', async (req, res) => {
+  console.log(req.body);
+  const con = await pool.getConnection(async conn => conn);
+  const sql = "SELECT `latitude`, `longitude`, `range` FROM workers WHERE worker_id=?";
+  /* 1. 해당 worker의 위도, 경도, 거리 설정 정보 가져오기 */
+  const [worker_info] = await con.query(sql, req.body['worker_id']);
+  console.log(worker_info);
+      
+  /* 2. store 정보 모두 가져오기 */
+  // 내게 권한 없는 정보만 가져와야 한다. 어떻게?
+  const sql2 = "SELECT * FROM stores WHERE store_id NOT IN (SELECT FK_qualifications_stores FROM qualifications WHERE FK_qualifications_workers=?)";
+  const [stores_info] = await con.query(sql2, req.body['worker_id']);
+  console.log(stores_info);
+      
+  /* 3. 거리 계산해서 send할 배열 생성 */
+  let stores = getStore(worker_info[0]['latitude'], worker_info[0]['longitude'], worker_info[0]['range'], stores_info);  
+  console.log(stores);
+  res.send(stores);
 });
 
 /* 주소 정보 전달 받아서 store table update
@@ -515,13 +537,15 @@ app.post('/store/list', (req, res) => {
     'FK_stores_owners': 2, 
     'location': '서울시 관악구 성현동'
   } */
-  app.post('/store/address/update', getPos, (req, res) => {
-    console.log(req.body);
+  app.post('/store/address/update', getPos, async (req, res) => {
+    const con = await pool.getConnection(async conn => conn);
     const sql = "UPDATE stores SET address=?, latitude=?, longitude=? WHERE FK_stores_owners=?";
-    con.query(sql, [req.body['location'], req.body['latitude'], req.body['longitude'], req.body['FK_stores_owners']], function(err, result, field) {
-        if (err) throw err;
-        res.send('success');
-    })
+    try {
+      await con.query(sql, [req.body['location'], req.body['latitude'], req.body['longitude'], req.body['FK_stores_owners']]);
+      res.send('success');
+    } catch {
+      res.send('error');
+    }
 })
 
 /********************************************************
@@ -845,6 +869,7 @@ app.post('/owner/mypage/interview', async (req, res) => {
 /* worker가 설정한 반경 이내의 가게 정보를 return */
 function getStore(latitude, longitude, range, stores_info) {
   const n = stores_info.length;
+  console.log(stores_info);
   let answer = new Array();
   let tmp = 0;
 
@@ -926,7 +951,7 @@ function masage_data(latitude, longitude, data) {
           databox[check[d['name']]]['work_date_and_type_and_id'][[d['work_date'], d['type'], d['order_id']]]['start_time_and_id'].push([d['start_time'], d['hourlyorders_id']]);
       }
   }
-  console.log(util.inspect(databox, {depth:10}));
+  // console.log(util.inspect(databox, {depth:10}));
   return databox;
 }
 
@@ -964,31 +989,30 @@ async function getPos(req, res, next) {
 }
 
 /* order의 모든 hourlyorder가 예약 된 경우, order의 status=1로 변경 */
-function check_all_hourlyorders_true(hourlyorders_id) {
+async function check_all_hourlyorders_true(hourlyorders_id) {
   console.log('start check!');
+  const con = await pool.getConnection(async conn => conn);
 
   /* 우선 hourlyorders_id에 딸린 FK_hourlyorders_orders를 찾아옴 */
   const sql = `SELECT FK_hourlyorders_orders FROM hourly_orders WHERE hourlyorders_id=?`;
-  con.query(sql, hourlyorders_id, function(err, result, field) {
-      let order_id = result[0]['FK_hourlyorders_orders'];
+  const [result] = await con.query(sql, hourlyorders_id);
+  let order_id = result[0]['FK_hourlyorders_orders'];
       
-      /* 이제 order_id에 해당하는 hourly_order를 모두 SELECT (아직 예약되지 않은 것만) */ 
-      const sql2 = `SELECT * FROM hourly_orders WHERE FK_hourlyorders_orders=? AND closing_time IS Null`
-      con.query(sql2, order_id, function(err, result2, field) {
-          if (err) throw err;
-          console.log(result2);
-          /* 만약 SELECT 된 것이 없다면 (모두 예약된 상태라면) */
-          if (result2.length === 0) 
-          {
-              /* orders table의 status=1로 업데이트 */
-              const sql3 = `UPDATE orders SET status=1 WHERE order_id=?`;
-              con.query(sql3, order_id, function(err, result3, field) {
-                  if (err) throw err;
-                  console.log('status is updated');
-              })
-          }
-      });
-  })
+  /* 이제 order_id에 해당하는 hourly_order를 모두 SELECT (아직 예약되지 않은 것만) */ 
+  const sql2 = `SELECT * FROM hourly_orders WHERE FK_hourlyorders_orders=? AND closing_time IS Null`
+  const [result2] = await con.query(sql2, order_id); 
+
+  /* 만약 SELECT 된 것이 없다면 (모두 예약된 상태라면) */
+  if (result2.length === 0) 
+  {
+    /* orders table의 status=1로 업데이트 */
+    const sql3 = `UPDATE orders SET status=1 WHERE order_id=?`;
+    try {
+      await con.query(sql3, order_id);
+    } catch {
+      console.log('error');
+    }
+  }
 };
 
 /* email로 owner id 가져오기 */
@@ -1082,6 +1106,28 @@ async function getJobIdByType(req, res, next) {
   }
 }
 
+/* owners 테이블에 존재하는 email이면 1, 아니면 0 */
+async function checkOwner(email) {
+  const con = await pool.getConnection(async conn => conn);
+  
+  /* 우선 owners db 확인 (더 적으니까) */
+  const sql = `SELECT * FROM owners WHERE email=?`;
+  const [result] = await con.query(sql, email);
+  if (result.length > 0) return 1;
+  else return 0;
+}
+
+/* workers 테이블에 존재하는 email이면 1, 아니면 0 */
+async function checkWorker(email) {
+  const con = await pool.getConnection(async conn => conn);
+
+  /* 우선 owners db 확인 (더 적으니까) */
+  const sql = `SELECT * FROM workers WHERE email=?`;
+  const [result] = await con.query(sql, email);
+  if (result.length > 0) return 1; 
+  else return 0;
+}
+
 /********************************************************
  *                        fail                          *
  *******************************************************/ 
@@ -1120,6 +1166,271 @@ function recur(idx, start_times, latitude, longitude, dict, hourly_orders, sum) 
   console.log('visit: '+visit);
   return Math.max.apply(null, array);
 }
+
+
+/*****************************************************************************************************
+ * 장혜원 나와바리 ************************************************************************************
+ * ***************************************************************************************************/
+
+// order_id : 1
+app.post('/reserve/load_store', async (req, res) => {
+  const con = await pool.getConnection(async conn => conn);
+  let order_id = req.body['order_id'];
+  store = {};
+  const sql_order = `SELECT FK_orders_stores FROM orders where order_id = ${order_id};`;
+  const [order_info] = await con.query(sql_order);
+  store_id = order_info[0]['FK_orders_stores'];
+  // console.log('store: ', store_id);
+
+  const sql_store = `SELECT FK_stores_owners, name, address, description, logo, background FROM stores WHERE store_id = ${store_id}`;
+  const [store_info] = await con.query(sql_store);
+  // console.log(store_info[0]['name']);
+  owner_id = store_info[0]['FK_stores_owners'];
+  // console.log('owner: ', owner_id);
+  // console.log(store_info);
+
+  store['name'] = store_info[0]['name'];
+  store['address'] = store_info[0]['address'];
+  store['description'] = store_info[0]['description'];
+  store['logo'] = store_info[0]['logo'];
+  store['background'] = store_info[0]['background'];
+
+  const sql_owner = `SELECT name, phone FROM owners WHERE owner_id = ${owner_id}`;
+  const [owner_info] = await con.query(sql_owner);
+  store['owner_name'] = owner_info[0]['name'];
+  store['owner_phone'] = owner_info[0]['phone'];
+  // console.log(store);
+  res.send(store);
+});
+
+
+// 면접신청 페이지 - 매장정보
+// store_id : 1
+app.post('/apply/load_store', async (req, res) => {
+  const con = await pool.getConnection(async conn => conn);
+  store_id = req.body['store_id'];
+  store = {};
+
+  const sql_store = `SELECT FK_stores_owners, name, address, description, logo, background FROM stores WHERE store_id = ${store_id}`;
+  const [store_info] = await con.query(sql_store);
+  // console.log(store_info[0]['name']);
+  owner_id = store_info[0]['FK_stores_owners'];
+  // console.log('owner: ', owner_id);
+  // console.log(store_info);
+
+  store['name'] = store_info[0]['name'];
+  store['address'] = store_info[0]['address'];
+  store['description'] = store_info[0]['description'];
+  store['logo'] = store_info[0]['logo'];
+  store['background'] = store_info[0]['background'];
+
+  const sql_owner = `SELECT name, phone FROM owners WHERE owner_id = ${owner_id}`;
+  const owner_info = await con.query(sql_owner);
+  store['owner_name'] = owner_info[0]['name'];
+  store['owner_phone'] = owner_info[0]['phone'];
+  // console.log(store);
+  res.send(store);
+});
+
+calendar = { 1: 31, 2: 28, 3: 31, 4: 30, 5: 31, 6: 30, 7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31 };
+hours = { 10: 0, 11: 1, 13: 2, 14: 3, 15: 4, 16: 5, 17: 6, 19: 7, 20: 8, 21: 9 };
+times = [];
+for (a = 0; a <= 31; a += 1) {
+  times.push([10, 11, 13, 14, 15, 16, 17, 19, 20, 21]);
+}
+
+// 'store_id' : 1, 'interview_month' : 3
+app.post('/apply/load_interview', async (req, res) => {
+  const con = await pool.getConnection(async conn => conn);
+  console.log("11111111", req.body);
+  store_id = req.body['store_id'];
+  month = req.body['interview_month'];
+  result = [];
+
+  let today = new Date();
+  year = today.getFullYear();
+  if (!month)
+      month = today.getMonth() + 1;
+  day = today.getDate();
+
+  interview = {};
+  const sql = `SELECT a.interview_date, b.time 
+                  FROM interviews AS a, interview_times AS b
+                  WHERE a.FK_interviews_interview_times = b.interview_time_id 
+                  AND a.FK_interviews_stores = ${store_id}`;
+  const [interview_info] = await con.query(sql);
+  n = interview_info.length;
+
+  for (i = 0; i < n; i += 1) { // 면접이 잡힌 날짜들
+      date = String(interview_info[i]['interview_date']);
+      date = date.split('T')[0];
+      time = interview_info[i]['time'];
+      if (interview[date]) { // 면접일자별 시간 - 예약완료
+          interview[date].push(time);
+      } else {
+          interview[date] = [time];
+      }
+  }
+
+  for (day; day <= calendar[month]; day += 1) {
+      month_str = String(month);
+      day_str = String(day);
+      month_str = month_str.padStart(2, '0');
+      day_str = day_str.padStart(2, '0');
+      new_date = `${year}-${month_str}-${day_str}`;
+
+      if (interview[new_date]) {
+          for (hour of interview[new_date]) {
+              times[day].splice(hours[hour], 1);
+          }
+      }
+      result.push({ 'date': new_date, 'time': times[day] });
+  }
+  // console.log(">>>>>>>>>>>>", result);
+  // return result;
+  res.send(result);
+});
+
+// 'interview_date' : 2022-07-18    // (날짜), 
+// 'interview_time' : 10    // (시간), 
+// 'question' : "쥐 나오나요"   // (질문)
+// 'worker_id' : 1  // (알바생id), 
+// 'store_id' : 1   // (가게id), 
+app.post('/apply/submit', async (req, res) => {
+  const con = await pool.getConnection(async conn => conn);
+  console.log(req.body);
+  interview_date = req.body['interview_date'];
+  interview_time = req.body['interview_time'];
+  worker_id = req.body['worker_id'];
+  store_id = req.body['store_id'];
+  question = req.body['question'];
+
+  let today = new Date();
+  year = today.getFullYear();
+  month = today.getMonth() + 1;
+  day = today.getDate();
+
+  month_str = String(month);
+  day_str = String(day);
+  month_str = month_str.padStart(2, '0');
+  day_str = day_str.padStart(2, '0');
+
+  new_date = `${year}-${month_str}-${day_str}`;
+
+  console.log('interview_time: ', interview_time);
+  tmp = hours[interview_time] + 1;
+  console.log('tmp: ', tmp);
+  const check_sql = `SELECT * FROM interviews WHERE FK_interviews_interview_times = ${tmp} 
+  AND interview_date = '${interview_date}' AND FK_interviews_workers = ${worker_id};`;
+  const [check_result] = await con.query(check_sql);
+  console.log(check_result[0]);
+  // let timeString = check_result[0]['request_date'].toLocaleString("en-US", {timeZone: "Asia/Seoul"});
+  // console.log(check_result[0]['request_date']);
+  if (check_result[0]) {
+      // console.log('yes');
+      // response = '안됨. 다른면접있음.';
+      res.send('안됨. 다른면접있음.');
+  } 
+  // console.log('no');
+  const sql = `INSERT INTO interviews (FK_interviews_stores, FK_interviews_workers, 
+      request_date, interview_date, FK_interviews_interview_times, question) 
+      VALUES (${store_id}, ${worker_id}, '${new_date}', '${interview_date}', '${tmp}', '${question}');`;
+  const [result] = await con.query(sql);
+  console.log(result);
+  if (result) {
+      res.send('신청 완료!'); // 메세지만 ?   
+      // res.redirect('/');             // 홈으로  ?     
+  }
+});
+
+// 마이페이지 - 면접시간표
+// 'worker_id' : 1
+app.post('/mypage/interview', async (req, res) => {
+  console.log(req.body)
+  const con = await pool.getConnection(async conn => conn);
+  worker_id = req.body['worker_id'];
+  cards = [];
+  // console.log(worker_id);
+  const sql = `SELECT a.FK_interviews_stores, a.interview_date, a.FK_interviews_interview_times, 
+  a.reject_flag, a.result_flag, a.link, a.state, b.name, b.address, c.time
+  From interviews as a, stores as b, interview_times as c 
+  where a.FK_interviews_stores = b.store_id and a.FK_interviews_interview_times = c.interview_time_id 
+  and FK_interviews_workers = ${worker_id} order by state, interview_date, time;`;
+  const [result] = await con.query(sql);
+  n = result.length;
+  pre_state = 0;
+
+  const worker_sql = `SELECT name FROM workers WHERE worker_id = ${worker_id};`
+  const [result_worker] = await con.query(worker_sql);
+  worker_name = result_worker[0]['name'];
+  // console.log(worker_name);
+  for (let i = 0; i < n; i++) {
+    store_id = result[i]['FK_interviews_stores'];
+
+    const type_sql = `SELECT type FROM store_job_lists JOIN jobs 
+    ON store_job_lists.FK_store_job_lists_jobs = jobs.job_id 
+    WHERE store_job_lists.FK_store_job_lists_stores = ${store_id};`;
+    const [result_type] = await con.query(type_sql);
+
+    date = result[i]['interview_date'].toISOString();
+    interview_date = date.split('T')[0];
+    interview_time = result[i]['time'];
+    reject_flag = result[i]['reject_flag'];
+    result_flag = result[i]['result_flag'];
+    link = result[i]['link'];
+    state = result[i]['state'];
+
+    store_name = result[i]['name'];
+    store_address = result[i]['address'];
+    store_type = result_type.map(result_type => result_type['type']);
+
+    card = {
+        'interview_date': interview_date,
+        'interview_time': interview_time,
+        'reject_flag': reject_flag,
+        'result_flag': result_flag,
+        'link': link,
+        'state': state,
+
+        'store_name': store_name,
+        'store_address': store_address,
+        'store_type': store_type
+    };
+    if (cards) {
+        cards.push(card);
+    } else {
+        cards = [card];
+    }
+    if (i == n - 1) {
+        // console.log('end');
+        let response = {
+                'name': worker_name,
+                'result': cards
+            }
+            // console.log(response);
+        res.send(response);
+    }
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

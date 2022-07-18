@@ -205,13 +205,14 @@ app.use('/worker/location/update', async (req, res) => {
       console.log('3. ', result_store_unqualified[0]);      
       
       msg = 'create order_list';
-      const sql_order_list = `create or replace view ${result[0]['worker_id']}_order_list as
-      select c.name, a.order_id, a.min_price, 
-      b.hourlyorders_id, b.work_date, b.start_time, b.dynamic_price, d.type
-      from orders a 
-      join hourly_orders b on a.order_id = b.FK_hourlyorders_orders
-      join ${result[0]['worker_id']}_store_qualified c on a.FK_orders_stores = c.store_id
-      join jobs d on a.FK_orders_jobs = d.job_id; `;
+        const sql_order_list = `create or replace view ${result[0]['worker_id']}_order_list as
+        select c.name, a.order_id, a.min_price, 
+        b.hourlyorders_id, b.work_date, b.start_time, b.dynamic_price, d.type
+        from orders a 
+        join hourly_orders b on a.order_id = b.FK_hourlyorders_orders
+        join ${result[0]['worker_id']}_store_qualified c on a.FK_orders_stores = c.store_id
+        join jobs d on a.FK_orders_jobs = d.job_id
+        where b.FK_hourlyorders_workers = Null; `;
       const [result_order_list] = await con.query(sql_order_list);
       console.log('4. ',result_order_list[0]);
 
@@ -345,11 +346,12 @@ app.post('/worker/reservation/list', async (req, res) => {
 
         // 3. order_list에서 order정보 가져오고
         msg = 'select order_list';
-        const sql2 = `SELECT hourlyorders_id, dynamic_price, min_price, start_time, type FROM ${worker_id}_order_list
+        const sql2 = `SELECT hourlyorders_id, dynamic_price, min_price, start_time FROM ${worker_id}_order_list
         WHERE order_id=${req.body['order_id']} AND work_date='${work_date}';`;
         const [orders] = await con.query(sql2);
         console.log('order : ', orders);
-        res.send({'store':store, 'order':orders});
+        
+        res.send(orders);
     }
     catch{
         res.send(`error - ${msg}`);
@@ -386,66 +388,39 @@ app.post('/worker/reservation/save', async (req, res) => {
   {
     'worker_id': 1
   } */
-// app.post('/worker/show/hourly_orders', async (req, res, next) => {
-//   console.log(req.body);
-//   const con = await pool.getConnection(async conn => conn);
-//   /* 1. 해당 order에 해당하는 hourly_order 가져오기. */
-//   // FK_hourlyorders_workers === NULL인 것만.
-//   const sql = `SELECT * FROM hourly_orders A 
-//                   INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id 
-//                   INNER JOIN stores C ON B.FK_orders_stores = C.store_id 
-//                   INNER JOIN jobs D ON B.FK_orders_jobs = D.job_id
-//                   WHERE FK_hourlyorders_orders IN 
-//                   (SELECT order_id FROM orders 
-//                       WHERE FK_orders_stores IN 
-//                       (SELECT store_id FROM stores WHERE store_id IN 
-//                           (SELECT FK_qualifications_stores FROM qualifications 
-//                               WHERE FK_qualifications_workers=?)) AND status=0)`
-//   try {
-//     const [valid_hourly_orders] = await con.query(sql, req.body['worker_id']);
-//     req.body['valid_hourly_orders'] = valid_hourly_orders;
-//     next();
-//   } catch {
-//     res.send('error');
-//   }  
-// });
-
-// /* 2. worker의 latitude, longitude 가져오기 */
-// app.use('/worker/show/hourly_orders', async (req, res) => {
-//   const con = await pool.getConnection(async conn => conn);
-//   const sql = `SELECT latitude, longitude FROM workers WHERE worker_id=?`;
-//   const [result] = await con.query(sql, req.body['worker_id']);
-//   console.log('서버 들어옴');
-//   res.send(masage_data(result[0]['latitude'], result[0]['longitude'], req.body['valid_hourly_orders']));
-// });
-
-app.post('/worker/show/hourly_orders', async(req, res) => {
-  console.log(req.body)
+app.post('/worker/show/hourly_orders', async (req, res, next) => {
+  console.log(req.body);
   const con = await pool.getConnection(async conn => conn);
-  let msg = '';
-  const worker_id = req.body['worker_id'];
-  try{
-      msg = 'select range';
-      const sql ='SELECT `range` FROM workers WHERE worker_id=?';
-      const [result] = await con.query(sql, worker_id);
-      console.log('result: ',result);
-      
-      msg = 'select order_list';
-      const sql_orders = `select * from ${worker_id}_order_list a join ${worker_id}_store_list b on a.name = b.name where b.distance < ${result[0]['range']};`;
-      const [valid_hourly_orders] = await con.query(sql_orders);
-      // console.log('valid: ', valid_hourly_orders);
-      /* worker의 latitude, longitude 가져오기 */
-      msg = 'masage data';
-      let orders = masage_data(valid_hourly_orders);
-          
-      // console.log('orders: ', orders);
-      res.send(orders);
-  }
-  catch{
-      res.send(`error - ${msg}`);
-  }
-
+  /* 1. 해당 order에 해당하는 hourly_order 가져오기. */
+  // FK_hourlyorders_workers === NULL인 것만.
+  const sql = `SELECT * FROM hourly_orders A 
+                  INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id 
+                  INNER JOIN stores C ON B.FK_orders_stores = C.store_id 
+                  INNER JOIN jobs D ON B.FK_orders_jobs = D.job_id
+                  WHERE FK_hourlyorders_orders IN 
+                  (SELECT order_id FROM orders 
+                      WHERE FK_orders_stores IN 
+                      (SELECT store_id FROM stores WHERE store_id IN 
+                          (SELECT FK_qualifications_stores FROM qualifications 
+                              WHERE FK_qualifications_workers=?)) AND status=0)`
+  try {
+    const [valid_hourly_orders] = await con.query(sql, req.body['worker_id']);
+    req.body['valid_hourly_orders'] = valid_hourly_orders;
+    next();
+  } catch {
+    res.send('error');
+  }  
 });
+
+/* 2. worker의 latitude, longitude 가져오기 */
+app.use('/worker/show/hourly_orders', async (req, res) => {
+  const con = await pool.getConnection(async conn => conn);
+  const sql = `SELECT latitude, longitude FROM workers WHERE worker_id=?`;
+  const [result] = await con.query(sql, req.body['worker_id']);
+  console.log('서버 들어옴');
+  res.send(masage_data(result[0]['latitude'], result[0]['longitude'], req.body['valid_hourly_orders']));
+});
+
 
 /* 최적의 알바 추천 */
 /* 
@@ -701,32 +676,6 @@ app.post('/store/list', async (req, res, next) => {
       delete result_unqualified['list_id'];
       
       res.send(result_unqualified);
-      // // console.log('result_unqualified:',result_unqualified);      
-
-      // n = result_unqualified.length;
-      // console.log(n);
-      // let store = []
-      // for(i=0; i<n; i++){
-      //     respon = {
-      //         "store_id": result_unqualified[i]['store_id'],
-      //         "name": result_unqualified[i]['name'],
-      //         "address": result_unqualified[i]['address'],
-      //         "description": result_unqualified[i]['description'],
-      //         "logo": result_unqualified[i]['logo'],
-      //         "minimum_wage": result_unqualified[i]['minimum_wage'],
-      //         "distance": result_unqualified[i]['distance']
-      //         // "owner_name": result_unqualified[i]['owner_name'],
-      //         // "owner_phone": result_unqualified[i]['phone']
-      //         // "background": result_unqualified[i]['background'],
-      //     }
-      //     store.push(respon);
-      //     // console.log(i);
-      //     // console.log(store[i]);
-      //     // console.log(result_unqualified[i]);
-      // }
-      // console.log(store);
-      // res.send(store);
-      // next();
   }
   catch{
       res.send(`error - ${msg}`);
@@ -1394,7 +1343,7 @@ function getInnerRange(latitude, longitude, range, info) {
 
 /* 주변일감 페이지 */
 /* front에 전달할 data 전처리 */
-function masage_data(data) {
+function masage_data(latitude, longitude, data) {
   let d;
   let len = data.length;
   let databox = [];
@@ -1406,10 +1355,11 @@ function masage_data(data) {
 
       /* 가게 이름이 없으면 새로 만들기 */
       if (!check.hasOwnProperty(d['name'])) {
+          let distance = getDistance(latitude, longitude, d['latitude'], d['longitude']);
           databox.push({
               'name': d['name'],
               'minimum_wage': d['minimum_wage'],
-              'distance': d['distance'],
+              'distance': distance,
               'key': [],
               'work_date_and_type_and_id': {}
           });
@@ -1445,6 +1395,61 @@ function masage_data(data) {
   console.log(util.inspect(databox, { depth: 20 }));
   return databox;
 }
+
+function masage_data2(data) {
+  let d;
+  let len = data.length;
+  let databox = [];
+  let check = {};
+  let count = 0;
+
+  for (let i = 0; i < len; i++) {
+      d = data[i];
+
+      /* 가게 이름이 없으면 새로 만들기 */
+      if (!check.hasOwnProperty(d['name'])) {
+          databox.push({
+              'name': d['name'],
+              'minimum_wage': d['minimum_wage'],
+              'distance': d['distance'],
+              'key': [],
+              'work_date_and_type_and_id': {}
+          });
+          check[d['name']] = count;
+          count += 1;
+      }
+
+      /* work_date_and_type가 없으면 새로 만들기 */
+      if (!databox[check[d['name']]]['work_date_and_type_and_id'].hasOwnProperty([d['work_date'], d['type'], d['order_id']])) {
+          databox[check[d['name']]]['work_date_and_type_and_id'][
+              [d['work_date'], d['type'], d['order_id']]
+          ] = {
+              'min_price': d['min_price'],
+              // 'max_price': d['max_price'],
+              'start_time_and_id': Array()
+          };
+
+          /* 이렇게라도 검색할 수 있게 key 목록을 주자.. */
+          let date = new Date(d['work_date']);
+          let n = date.getTimezoneOffset();
+          // databox[check[d['name']]]['key'].push([(d['work_date'] + n).split('-')[0], d['type'], d['order_id']]);
+          databox[check[d['name']]]['key'].push([d['work_date'], d['type'], d['order_id']]);
+      }
+
+      /* start_time이 없으면 새로 만들기 */
+      if (!databox[check[d['name']]]['work_date_and_type_and_id'][
+              [d['work_date'], d['type'], d['order_id']]
+          ]['start_time_and_id'].hasOwnProperty([d['start_time'], d['hourlyorders_id']])) {
+          databox[check[d['name']]]['work_date_and_type_and_id'][
+              [d['work_date'], d['type'], d['order_id']]
+          ]['start_time_and_id'].push([d['start_time'], d['hourlyorders_id']]);
+      }
+  }
+  console.log(util.inspect(databox, { depth: 20 }));
+  return databox;
+}
+
+
 
 /* 두 개의 좌표 간 거리 구하기 */
 function getDistance(lat1, lon1, lat2, lon2) {
@@ -1623,43 +1628,8 @@ async function checkWorker(email) {
 }
 
 /********************************************************
- *                        fail                          *
+ *                        혜원                          *
  *******************************************************/ 
-
-/* 추천을 해줘.. 무한루프만 돌지 말고 */
-/* 브루트포스 추천 */
-function recur(idx, start_times, latitude, longitude, dict, hourly_orders, sum) {
-  console.log('idx: '+idx);
-  if (idx === start_times.length-1) {
-    return sum;
-  }
-  
-  /* 완전탐색 그냥 해보자. */
-  let key = new Date(start_times[idx]);
-  let n = dict[key].length;
-  // console.log('key: '+key+', n: '+n);
-  let array = Array();
-
-  for (let i = 0; i < n; i++) {
-    let dest_latitude = hourly_orders[dict[key][i]['idx']]['latitude'];
-    let dest_longitude = hourly_orders[dict[key][i]['idx']]['longitude'];
-    let tmp = dict[key][i]['price'];
-    tmp -= getDistance(latitude, 
-                       longitude, 
-                       dest_latitude,
-                       dest_longitude) * 2.5;
-    array.push(recur(idx + 1, start_times, dest_latitude, dest_longitude, dict, hourly_orders, sum + tmp));
-    visit.push(i);
-    // array.push(sum+tmp);
-    // console.log('tmp: '+tmp);
-  }
-  // let max = array.reduce(function (previous, current) {
-  //   return previous > current ? previous:current;
-  // })
-  console.log('리턴값: '+Math.max.apply(null, array));
-  console.log('visit: '+visit);
-  return Math.max.apply(null, array);
-}
 
 
 app.listen(PORT, () => {

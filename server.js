@@ -9,8 +9,6 @@ const PORT = process.env.PORT || 4000;
 
 /* console.log depth에 필요 */
 let util = require('util');
-const { send } = require("process");
-const { time } = require("console");
 // const { off } = require("process");
 
 /* 구글 map api */
@@ -152,16 +150,80 @@ app.post('/worker/id', async (req, res) => {
     'email': 'dngp93@gmail.com', 
     'location': '서울시 관악구 성현동'
   } */
-app.post('/worker/location/update', getPos, async (req, res) => {
+app.post('/worker/location/update', getPos, async (req, res, next) => {
   const con = await pool.getConnection(async conn => conn);
-  const sql = "UPDATE workers SET location=?, latitude=?, longitude=? WHERE email=?";
-  try {
-    await con.query(sql, [req.body['location'], req.body['latitude'], req.body['longitude'], req.body['email']])
-    res.send('success');
-  } catch {
-    res.send('error');
+  try{        
+      const sql = "UPDATE workers SET location=?, latitude=?, longitude=? WHERE email=?";
+      const [result] = await con.query(sql, [req.body['location'], req.body['latitude'], req.body['longitude'], req.body['email']])
+      console.log('end of post');
+      con.release();
+      next();
+      // res.send('success');
+  }
+  catch{
+    con.release();
+    res.send('error - update workers');        
   }
 })
+app.use('/worker/location/update', async (req, res) => {
+  console.log(req.body)
+  const con = await pool.getConnection(async conn => conn);
+  console.log('start use');
+  let msg = "";
+  // console.log('msg?');
+  try{
+      // console.log('try?');
+      msg = "select worker_id";
+      // console.log('msg?');
+      const sql = `SELECT worker_id from workers where email='${req.body['email']}';`;
+      const [result] = await con.query(sql);
+      console.log('result:',result);
+
+      msg = 'create store_list';
+      const sql_store_list = `CREATE OR REPLACE VIEW ${result[0]['worker_id']}_store_list AS 
+      select store_id as list_id, name, minimum_wage, get_distance(latitude, ${req.body['latitude']}, longitude-${req.body['longitude']}) AS distance
+      from stores;`;
+      const [result_store_list] = await con.query(sql_store_list);
+      console.log('1. ',result_store_list);
+      
+      msg = 'create store_qualified';
+      const sql_store_qualified = `create or replace view ${result[0]['worker_id']}_store_qualified as
+      select a.store_id, a.name, a.description, a.logo, a.background, a.address, b.name owner_name, b.phone
+      from stores a, owners b, ${result[0]['worker_id']}_store_list c
+      where c.distance < 1000 and a.name = c.name and a.FK_stores_owners = b.owner_id 
+      and a.store_id in (select FK_qualifications_stores from qualifications where FK_qualifications_workers = ${result[0]['worker_id']}); `;
+      const [result_store_qualified] = await con.query(sql_store_qualified);        
+      console.log('2. ',result_store_qualified[0]);
+      
+      msg = 'create store_unqualified';
+      const sql_store_unqualified = `create or replace view ${result[0]['worker_id']}_store_unqualified as
+      select a.store_id, a.name, a.description, a.logo, a.background, a.address, b.name owner_name, b.phone
+      from stores a, owners b, ${result[0]['worker_id']}_store_list c
+      where c.distance < 1000 and a.name = c.name and a.FK_stores_owners = b.owner_id 
+      and a.store_id not in (select FK_qualifications_stores from qualifications where FK_qualifications_workers = ${result[0]['worker_id']}); `;
+      const [result_store_unqualified] = await con.query(sql_store_unqualified);        
+      console.log('3. ', result_store_unqualified[0]);      
+      
+      msg = 'create order_list';
+      const sql_order_list = `create or replace view ${result[0]['worker_id']}_order_list as
+      select c.name, a.order_id, a.min_price, 
+      b.hourlyorders_id, b.work_date, b.start_time, b.dynamic_price, d.type
+      from orders a 
+      join hourly_orders b on a.order_id = b.FK_hourlyorders_orders
+      join ${result[0]['worker_id']}_store_qualified c on a.FK_orders_stores = c.store_id
+      join jobs d on a.FK_orders_jobs = d.job_id; `;
+      const [result_order_list] = await con.query(sql_order_list);
+      console.log('4. ',result_order_list[0]);
+
+      con.release();
+      res.send('success');
+  }
+  catch{
+    con.release();
+    console.log('catch');
+    res.send(`error - ${msg}`);
+  }
+});
 
 /* 거리 정보 전달 받아서 worker table update
    data form === 
@@ -212,32 +274,87 @@ app.post('/worker/range', async (req, res) => {
   'work_date': '2022-08-20 00:00:000Z', 
   'type': '설거지'
 } */
-app.post('/worker/reservation/list', async (req, res, next) => {
-  console.log(req.body);
-  const con = await pool.getConnection(async conn => conn);
-  const sql = "SELECT job_id FROM jobs WHERE type=?"
-  req.body['work_date'] = masageDateToYearMonthDay(req.body['work_date']);
-  try {
-    const [result] = await con.query(sql, req.body['type'])
-    req.body['job_id'] = result[0]['job_id'];
-    next();
-  } catch {
-    res.send('error');
-  }
-})
+// app.post('/worker/reservation/list', async (req, res, next) => {
+//   console.log(req.body);
+//   const con = await pool.getConnection(async conn => conn);
+//   const sql = "SELECT job_id FROM jobs WHERE type=?"
+//   req.body['work_date'] = masageDateToYearMonthDay(req.body['work_date']);
+//   try {
+//     const [result] = await con.query(sql, req.body['type'])
+//     req.body['job_id'] = result[0]['job_id'];
+//     next();
+//   } catch {
+//     res.send('error');
+//   }
+// })
 
-app.use('/worker/reservation/list', async (req, res) => {
-  const con = await pool.getConnection(async conn => conn);
-  const sql = `SELECT hourlyorders_id, dynamic_price, min_price, start_time FROM hourly_orders A
-                      INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id
-                      WHERE order_id=? AND work_date=? AND FK_orders_jobs=?`;
-  try{
-    const [result] = await con.query(sql, [req.body['order_id'],req.body['work_date'],req.body['job_id']])
-    console.log(result);
-    res.send(result)
-  } catch {
-    res.send('error');
-  }
+// app.use('/worker/reservation/list', async (req, res) => {
+//   const con = await pool.getConnection(async conn => conn);
+//   const sql = `SELECT hourlyorders_id, dynamic_price, min_price, start_time FROM hourly_orders A
+//                       INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id
+//                       WHERE order_id=? AND work_date=? AND FK_orders_jobs=?`;
+//   try{
+//     const [result] = await con.query(sql, [req.body['order_id'],req.body['work_date'],req.body['job_id']])
+//     console.log(result);
+//     res.send(result)
+//   } catch {
+//     res.send('error');
+//   }
+// })
+
+/* 
+{
+  'worker_id': 2,
+  'order_id': 2, 
+  'work_date': '2022-08-20', 
+//   'type': '설거지'
+} */
+app.post('/worker/reservation/list', async (req, res) => {
+  console.log(req.body)
+    const con = await pool.getConnection(async conn => conn);
+    let msg = '';
+    // let work_date = masage_date(req.body['work_date']);
+    const worker_id = req.body['worker_id'];
+    const order_id = req.body['order_id'];
+    let work_date = req.body['work_date'];
+    // console.log(req.body);
+
+    try{
+        // 1. store_id 찾아서        
+        msg = 'select store_id';
+        const sql = `SELECT FK_orders_stores FROM orders where order_id = ${order_id};`;
+        const [result] = await con.query(sql);
+        console.log('result : ',result);
+        
+        // 2. qualified에서 store정보 가져오고
+        msg = 'select qualified';
+        const sql_qualified = `select * from ${worker_id}_store_qualified where store_id = ${result[0]['FK_orders_stores']};`;
+        const [result_qualified] = await con.query(sql_qualified);
+        console.log('result_qualified : ', result_qualified);
+        
+        let store = {
+            'name': result_qualified[0]['name'],
+            'address': result_qualified[0]['address'],
+            'description': result_qualified[0]['description'],
+            'logo': result_qualified[0]['logo'],
+            'background': result_qualified[0]['background'],
+            'owner_name': result_qualified[0]['owner_name'],
+            'owner_phone': result_qualified[0]['phone']
+        };
+        console.log('store : ', store);
+
+        // 3. order_list에서 order정보 가져오고
+        msg = 'select order_list';
+        const sql2 = `SELECT hourlyorders_id, dynamic_price, min_price, start_time, type FROM ${worker_id}_order_list
+        WHERE order_id=${req.body['order_id']} AND work_date='${work_date}';`;
+        const [orders] = await con.query(sql2);
+        console.log('order : ', orders);
+        res.send({'store':store, 'order':orders});
+    }
+    catch{
+        res.send(`error - ${msg}`);
+    }
+    
 })
 
 
@@ -269,37 +386,65 @@ app.post('/worker/reservation/save', async (req, res) => {
   {
     'worker_id': 1
   } */
-app.post('/worker/show/hourly_orders', async (req, res, next) => {
-  console.log(req.body);
-  const con = await pool.getConnection(async conn => conn);
-  /* 1. 해당 order에 해당하는 hourly_order 가져오기. */
-  // FK_hourlyorders_workers === NULL인 것만.
-  const sql = `SELECT * FROM hourly_orders A 
-                  INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id 
-                  INNER JOIN stores C ON B.FK_orders_stores = C.store_id 
-                  INNER JOIN jobs D ON B.FK_orders_jobs = D.job_id
-                  WHERE FK_hourlyorders_orders IN 
-                  (SELECT order_id FROM orders 
-                      WHERE FK_orders_stores IN 
-                      (SELECT store_id FROM stores WHERE store_id IN 
-                          (SELECT FK_qualifications_stores FROM qualifications 
-                              WHERE FK_qualifications_workers=?)) AND status=0)`
-  try {
-    const [valid_hourly_orders] = await con.query(sql, req.body['worker_id']);
-    req.body['valid_hourly_orders'] = valid_hourly_orders;
-    next();
-  } catch {
-    res.send('error');
-  }  
-});
+// app.post('/worker/show/hourly_orders', async (req, res, next) => {
+//   console.log(req.body);
+//   const con = await pool.getConnection(async conn => conn);
+//   /* 1. 해당 order에 해당하는 hourly_order 가져오기. */
+//   // FK_hourlyorders_workers === NULL인 것만.
+//   const sql = `SELECT * FROM hourly_orders A 
+//                   INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id 
+//                   INNER JOIN stores C ON B.FK_orders_stores = C.store_id 
+//                   INNER JOIN jobs D ON B.FK_orders_jobs = D.job_id
+//                   WHERE FK_hourlyorders_orders IN 
+//                   (SELECT order_id FROM orders 
+//                       WHERE FK_orders_stores IN 
+//                       (SELECT store_id FROM stores WHERE store_id IN 
+//                           (SELECT FK_qualifications_stores FROM qualifications 
+//                               WHERE FK_qualifications_workers=?)) AND status=0)`
+//   try {
+//     const [valid_hourly_orders] = await con.query(sql, req.body['worker_id']);
+//     req.body['valid_hourly_orders'] = valid_hourly_orders;
+//     next();
+//   } catch {
+//     res.send('error');
+//   }  
+// });
 
-/* 2. worker의 latitude, longitude 가져오기 */
-app.use('/worker/show/hourly_orders', async (req, res) => {
+// /* 2. worker의 latitude, longitude 가져오기 */
+// app.use('/worker/show/hourly_orders', async (req, res) => {
+//   const con = await pool.getConnection(async conn => conn);
+//   const sql = `SELECT latitude, longitude FROM workers WHERE worker_id=?`;
+//   const [result] = await con.query(sql, req.body['worker_id']);
+//   console.log('서버 들어옴');
+//   res.send(masage_data(result[0]['latitude'], result[0]['longitude'], req.body['valid_hourly_orders']));
+// });
+
+app.post('/worker/show/hourly_orders', async(req, res) => {
+  console.log(req.body)
   const con = await pool.getConnection(async conn => conn);
-  const sql = `SELECT latitude, longitude FROM workers WHERE worker_id=?`;
-  const [result] = await con.query(sql, req.body['worker_id']);
-  console.log('서버 들어옴');
-  res.send(masage_data(result[0]['latitude'], result[0]['longitude'], req.body['valid_hourly_orders']));
+  let msg = '';
+  const worker_id = req.body['worker_id'];
+  try{
+      msg = 'select range';
+      const sql ='SELECT `range` FROM workers WHERE worker_id=?';
+      const [result] = await con.query(sql, worker_id);
+      console.log('result: ',result);
+      
+      msg = 'select order_list';
+      const sql_orders = `select * from ${worker_id}_order_list a join ${worker_id}_store_list b on a.name = b.name where b.distance < ${result[0]['range']};`;
+      const [valid_hourly_orders] = await con.query(sql_orders);
+      // console.log('valid: ', valid_hourly_orders);
+      /* worker의 latitude, longitude 가져오기 */
+      msg = 'masage data';
+      let orders = masage_data(valid_hourly_orders);
+          
+      // console.log('orders: ', orders);
+      res.send(orders);
+  }
+  catch{
+      res.send(`error - ${msg}`);
+  }
+
 });
 
 /* 최적의 알바 추천 */
@@ -517,24 +662,75 @@ async function suggestion(worker_id, hourly_orders, start_times)
   {
     'worker_id': 1
   } */
-app.post('/store/list', async (req, res) => {
-  console.log(req.body);
+// app.post('/store/list', async (req, res) => {
+//   console.log(req.body);
+//   const con = await pool.getConnection(async conn => conn);
+//   const sql = "SELECT `latitude`, `longitude`, `range` FROM workers WHERE worker_id=?";
+//   /* 1. 해당 worker의 위도, 경도, 거리 설정 정보 가져오기 */
+//   const [worker_info] = await con.query(sql, req.body['worker_id']);
+//   console.log(worker_info);
+      
+//   /* 2. store 정보 모두 가져오기 */
+//   // 내게 권한 없는 정보만 가져와야 한다. 어떻게?
+//   const sql2 = "SELECT * FROM stores WHERE store_id NOT IN (SELECT FK_qualifications_stores FROM qualifications WHERE FK_qualifications_workers=?)";
+//   const [stores_info] = await con.query(sql2, req.body['worker_id']);
+//   console.log(stores_info);
+      
+//   /* 3. 거리 계산해서 send할 배열 생성 */
+//   let stores = getStore(worker_info[0]['latitude'], worker_info[0]['longitude'], worker_info[0]['range'], stores_info);  
+//   console.log(stores);
+//   res.send(stores);
+// });
+
+app.post('/store/list', async (req, res, next) => {
   const con = await pool.getConnection(async conn => conn);
-  const sql = "SELECT `latitude`, `longitude`, `range` FROM workers WHERE worker_id=?";
-  /* 1. 해당 worker의 위도, 경도, 거리 설정 정보 가져오기 */
-  const [worker_info] = await con.query(sql, req.body['worker_id']);
-  console.log(worker_info);
+  let msg = '';
+  const worker_id = req.body['worker_id'];
+  try{
+      /* 해당 worker의 위도, 경도, 거리 설정 정보 가져오기 */
+      msg = 'select range';
+      const sql ='SELECT `range` FROM workers WHERE worker_id=?';
+      const [result] = await con.query(sql, worker_id);
+      // req.body['worker_range'] = result[0]['range'];
+      console.log('result:',result);
       
-  /* 2. store 정보 모두 가져오기 */
-  // 내게 권한 없는 정보만 가져와야 한다. 어떻게?
-  const sql2 = "SELECT * FROM stores WHERE store_id NOT IN (SELECT FK_qualifications_stores FROM qualifications WHERE FK_qualifications_workers=?)";
-  const [stores_info] = await con.query(sql2, req.body['worker_id']);
-  console.log(stores_info);
+      msg = 'select unqualified';
+      const sql_unqualified =`select a.*, b.name, b.minimum_wage, b.distance from ${worker_id}_store_unqualified a join ${worker_id}_store_list b on a.store_id = b.list_id 
+      where b.distance < ${result[0]['range']} ;`;
+      const [result_unqualified] = await con.query(sql_unqualified);
+      delete result_unqualified['list_id'];
       
-  /* 3. 거리 계산해서 send할 배열 생성 */
-  let stores = getStore(worker_info[0]['latitude'], worker_info[0]['longitude'], worker_info[0]['range'], stores_info);  
-  console.log(stores);
-  res.send(stores);
+      res.send(result_unqualified);
+      // // console.log('result_unqualified:',result_unqualified);      
+
+      // n = result_unqualified.length;
+      // console.log(n);
+      // let store = []
+      // for(i=0; i<n; i++){
+      //     respon = {
+      //         "store_id": result_unqualified[i]['store_id'],
+      //         "name": result_unqualified[i]['name'],
+      //         "address": result_unqualified[i]['address'],
+      //         "description": result_unqualified[i]['description'],
+      //         "logo": result_unqualified[i]['logo'],
+      //         "minimum_wage": result_unqualified[i]['minimum_wage'],
+      //         "distance": result_unqualified[i]['distance']
+      //         // "owner_name": result_unqualified[i]['owner_name'],
+      //         // "owner_phone": result_unqualified[i]['phone']
+      //         // "background": result_unqualified[i]['background'],
+      //     }
+      //     store.push(respon);
+      //     // console.log(i);
+      //     // console.log(store[i]);
+      //     // console.log(result_unqualified[i]);
+      // }
+      // console.log(store);
+      // res.send(store);
+      // next();
+  }
+  catch{
+      res.send(`error - ${msg}`);
+  }
 });
 
 /* 주소 정보 전달 받아서 store table update
@@ -1198,7 +1394,7 @@ function getInnerRange(latitude, longitude, range, info) {
 
 /* 주변일감 페이지 */
 /* front에 전달할 data 전처리 */
-function masage_data(latitude, longitude, data) {
+function masage_data(data) {
   let d;
   let len = data.length;
   let databox = [];
@@ -1209,13 +1405,11 @@ function masage_data(latitude, longitude, data) {
       d = data[i];
 
       /* 가게 이름이 없으면 새로 만들기 */
-      if (!check.hasOwnProperty(d['name']))
-      {
-          let distance = getDistance(latitude, longitude, d['latitude'], d['longitude']);
+      if (!check.hasOwnProperty(d['name'])) {
           databox.push({
               'name': d['name'],
-              'minimum_wage': d['minimum_wage'], 
-              'distance': distance,
+              'minimum_wage': d['minimum_wage'],
+              'distance': d['distance'],
               'key': [],
               'work_date_and_type_and_id': {}
           });
@@ -1224,26 +1418,31 @@ function masage_data(latitude, longitude, data) {
       }
 
       /* work_date_and_type가 없으면 새로 만들기 */
-      if (!databox[check[d['name']]]['work_date_and_type_and_id'].hasOwnProperty([d['work_date'], d['type'], d['order_id']]))
-      {
-          databox[check[d['name']]]['work_date_and_type_and_id'][[d['work_date'], d['type'], d['order_id']]] = {
+      if (!databox[check[d['name']]]['work_date_and_type_and_id'].hasOwnProperty([d['work_date'], d['type'], d['order_id']])) {
+          databox[check[d['name']]]['work_date_and_type_and_id'][
+              [d['work_date'], d['type'], d['order_id']]
+          ] = {
               'min_price': d['min_price'],
-              'max_price': d['max_price'],
+              // 'max_price': d['max_price'],
               'start_time_and_id': Array()
           };
-          
+
           /* 이렇게라도 검색할 수 있게 key 목록을 주자.. */
-          var tmp = new Date(d['work_date']);
-          databox[check[d['name']]]['key'].push([tmp, d['type'], d['order_id']]);
+          let date = new Date(d['work_date']);
+          let n = date.getTimezoneOffset();
+          databox[check[d['name']]]['key'].push([d['work_date'], d['type'], d['order_id']]);
       }
-      
+
       /* start_time이 없으면 새로 만들기 */
-      if (!databox[check[d['name']]]['work_date_and_type_and_id'][[d['work_date'], d['type'], d['order_id']]]['start_time_and_id'].hasOwnProperty([d['start_time'], d['hourlyorders_id']]))
-      {
-          databox[check[d['name']]]['work_date_and_type_and_id'][[d['work_date'], d['type'], d['order_id']]]['start_time_and_id'].push([d['start_time'], d['hourlyorders_id']]);
+      if (!databox[check[d['name']]]['work_date_and_type_and_id'][
+              [d['work_date'], d['type'], d['order_id']]
+          ]['start_time_and_id'].hasOwnProperty([d['start_time'], d['hourlyorders_id']])) {
+          databox[check[d['name']]]['work_date_and_type_and_id'][
+              [d['work_date'], d['type'], d['order_id']]
+          ]['start_time_and_id'].push([d['start_time'], d['hourlyorders_id']]);
       }
   }
-  console.log(util.inspect(databox, {depth:10}));
+  console.log(util.inspect(databox, { depth: 20 }));
   return databox;
 }
 
@@ -1461,9 +1660,6 @@ function recur(idx, start_times, latitude, longitude, dict, hourly_orders, sum) 
   console.log('visit: '+visit);
   return Math.max.apply(null, array);
 }
-
-/*  */
-
 
 
 app.listen(PORT, () => {

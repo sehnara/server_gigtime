@@ -614,7 +614,8 @@ app.post('/owner/signup', getPos, async (req, res) => {
 /*
   input form
   {
-    'email': 'borinuri@gmail.com'
+    'email': 'borinuri@gmail.com',
+    'owner_id': 60
   }
 
   output form
@@ -626,10 +627,11 @@ app.post('/owner/signup', getPos, async (req, res) => {
 */
 
 /* 1. owners 테이블에서 owner_id 가져오기 */
-app.post('/store/info', getOwnerIdByEmail, async (req, res, next) => { next(); })
+// app.post('/owner/mypage/employment/button', getOwnerIdByEmail, async (req, res, next) => { next(); })
 
 /* 2. stores 테이블에서 owner_id로 name, address, store_id 가져오기 */
-app.use('/store/info', async (req, res, next) => {
+app.use('/owner/mypage/employment/button', async (req, res, next) => {
+  console.log(req.body)
   const con = await pool.getConnection(async conn => conn);
 
   try {
@@ -646,7 +648,7 @@ app.use('/store/info', async (req, res, next) => {
 })
 
 /* 3. store_job_lists 테이블에서 store_id로 FK_store_job_lists_jobs 모두 가져오기 */
-app.use('/store/info', getJobIdByStoreId, async (req, res) => {
+app.use('/owner/mypage/employment/button', getJobIdByStoreId, async (req, res) => {
   delete req.body['email'];
   delete req.body['owner_id'];
   delete req.body['store_id'];
@@ -714,7 +716,7 @@ async function getTypeByJobId(job_ids) {
 /* 
   input form
   {
-    'email': 'borinuri@gmail.com',
+    'owner_id': 60,
     'store_name': '보리누리',
     'type': '설거지',
     'description': '설거지 알바 모집합니다',
@@ -726,11 +728,14 @@ async function getTypeByJobId(job_ids) {
   }
 */
 
-/* 1. owners 테이블에서 email로 owner_id 가져오기 */
-app.post('/owner/employment', getOwnerIdByEmail, async (req, res, next) => { next(); })
+// /* 1. owners 테이블에서 email로 owner_id 가져오기 */
+// app.post('/owner/employment', getOwnerIdByEmail, async (req, res, next) => { next(); })
 
 /* 2. stores 테이블에서 owner_id로 store_id 가져오기 */
-app.use('/owner/employment', getStoreIdByOwnerId, async (req, res, next) => { next(); })
+app.use('/owner/employment', getStoreIdByOwnerId, async (req, res, next) => { 
+  console.log(req.body)
+  next(); 
+})
 
 /* 3. jobs 테이블에서 type으로 job_id 가져오기 */
 app.use('/owner/employment', getJobIdByType, async (req, res, next) => { next(); })
@@ -744,9 +749,11 @@ app.use('/owner/employment', async (req, res, next) => {
     let request_date = new Date();
     await con.query(sql, [req.body['store_id'], request_date, req.body['job_id'], req.body['description'], req.body['price'], 0])
     req.body['request_date'] = request_date;
+    con.release();
     next();
   }
   catch {
+    con.release();
     console.log('error 4');
   }
 })
@@ -754,7 +761,6 @@ app.use('/owner/employment', async (req, res, next) => {
 /* 5. orders 테이블에서 request_date로 order_id 가져오기 */
 app.use('/owner/employment', async (req, res, next) => {
   const con = await pool.getConnection(async conn => conn);
-  console.log('5-1')
 
   try {
     // const sql = "SELECT order_id FROM orders WHERE request_date=?"; // 이거 request_date로 하면 안된다. 마지막 행을 읽자
@@ -764,9 +770,11 @@ app.use('/owner/employment', async (req, res, next) => {
     // 그럴 수 있나? 그럴 수 있다면, 해결책은?
     const [result] = await con.query(sql, masageDateToYearMonthDayHourMinSec(req.body['request_date']));
     req.body['order_id'] = result[0]['order_id']; // result[0]인 것 주의
+    con.release();
     next();
   }
   catch {
+    con.release();
     console.log('error 5');
   }
 })
@@ -818,10 +826,13 @@ app.use('/owner/employment', async (req, res) => {
       }
     }
     // console.log(insert_array);
+    console.log(insert_array);
     await con.query(sql, [insert_array]);
+    con.release();
     res.send('success');
   } 
   catch {
+    con.release();
     console.log('error 6');
   }
 })
@@ -835,38 +846,6 @@ app.post('/owner/mypage/interview', async (req, res) => {
 
 })
 
-
-// app.post('/owner/signup', async (req, res) => {  
-//     console.log(req.body);  
-//     /* 먼저, owners 테이블에 name, eamil, phone INSERT */
-//     const sql = "INSERT INTO owners SET name=?, email=?, phone=?";
-//     await con.query(sql, [req.body['name'], req.body['email'], req.body['phone']], async function(err, result, field) {
-//         if (err) throw err;
-        
-//         /* owners 테이블에서 owner_id SELECT */
-//         const sql2 = "SELECT owner_id FROM owners WHERE email=?";
-//         await con.query(sql2, req.body['email'], async function(err, result2, field) {
-//           console.log(req.body)
-//           if (err) throw err;
-
-//           /* stores db에 INSERT */
-//           const sql3 = `INSERT INTO stores SET ?`;
-//           let tmp = {
-//               'FK_stores_owners': result2['owner_id'],
-//               'name': req.body['store_name'],
-//               'address': req.body['location'],
-//               'latitude': req.body['latitude'], // 여기 바꿔야
-//               'longitude': req.body['longitude'], // 여기도
-//               'description': req.body['description'],
-//               'minimum_wage': req.body['minimum_wage']
-//           }
-//           await con.query(sql3, tmp, async function(err, result3, field) {
-//               if (err) throw err;
-//               res.send('success');
-//           })
-//         }) 
-//     })
-// })
 
 /********************************************************
  * ******************************************************
@@ -1063,38 +1042,22 @@ async function getWorkerIdByEmail(req, res, next) {
 
 /* 사장님 홈 - 모집내역 */
 /* input { 'owner_id': 2 } */
-/* output 
-    {
-      key: [ '2022-08-20,서빙,1', '2022-08-20,설거지,2' ], // 날짜,종류,id
-      '2022-08-20,서빙,1': [
-        { start_time: '10:00', price: 10255, worker_id: NULL, id: 1 },
-        { start_time: '11:00', price: 10255, worekr_id: 1, id: 2 }
-      ],
-      '2022-08-20,설거지,2': [
-        { start_time: '16:00', price: 10250, worker_id: NULL, id: 10 },
-        { start_time: '17:00', price: 10250, worker_id: NULL, id: 11 }
-      ]
-    } */
+
 /* 1. owners 테이블에서 owner_id로 FK_orders_stores 가져오기 */
 app.post('/owner/mypage/work', getStoreIdByOwnerId, async (req, res, next) => {
-  console.log('1111')
   next();
 })
 
 /* 2. order 테이블에서 store_id로 order_id 배열에 담기 */
 app.use('/owner/mypage/work', async (req, res, next) => {
-  console.log('2222')
   const con = await pool.getConnection(async conn => conn);
-  console.log('2-1')
   const sql = `SELECT order_id FROM orders WHERE FK_orders_stores=${req.body['store_id']} AND (status=0 OR status=1)`
-  console.log('2-2')
   const [result] = await con.query(sql);
-  console.log('2-3')
   let order_ids = Array();
   for (let i = 0; i < result.length; i++)
     order_ids.push(result[i]['order_id'])
   req.body['order_ids'] = order_ids;
-  console.log('2-4')
+  console.log(req.body)
   con.release();
   next();
 })
@@ -1102,22 +1065,21 @@ app.use('/owner/mypage/work', async (req, res, next) => {
 /* 3. hourly_orders 테이블에서 order_id에 해당하는 모든 row 가져오기 */
 // orders, workers, jobs 테이블에서 필요한 정보만 추가로 JOIN
 app.use('/owner/mypage/work', async (req, res, next) => {
-  console.log('3333')
   const con = await pool.getConnection(async conn => conn);
   const sql = `SELECT A.*, B.order_id, B.min_price AS price, C.name, D.type FROM hourly_orders A 
                INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id
-               INNER JOIN workers C ON A.FK_hourlyorders_workers = C.worker_id
+               LEFT OUTER JOIN workers C ON A.FK_hourlyorders_workers = C.worker_id
                INNER JOIN jobs D ON B.FK_orders_jobs = D.job_id
                WHERE FK_hourlyorders_orders IN (${req.body['order_ids']})`
   const [result] = await con.query(sql)
   req.body['hourly_orders'] = result;
+  console.log(result.length)
   con.release();
   next();
 })
 
 /* 4. masage data */
 app.use('/owner/mypage/work', async (req, res, next) => {
-  console.log('4444')
   let send_data = new Array();
 
   let len = req.body['hourly_orders'].length;
@@ -1144,59 +1106,53 @@ app.use('/owner/mypage/work', async (req, res, next) => {
     send_data[check[key]].push(
       masageDateToHour(tmp['start_time'])+','+tmp['price'].toString()+','+tmp['name']+','+tmp['hourlyorders_id']
     )
-
-  //   type = tmp['type'];
-  //   order_id = tmp['order_id'].toString();
-  //   key = date+','+type+','+order_id
-    
-  //   /* key가 배열에 없으면 넣어 주고 */
-  //   if (send_data['key'].indexOf(key) === -1)
-  //     send_data['key'].push(key)
-
-  //   /* key로 찾아갈 value 생성 */
-  //   send_data[key] = {
-  //     'start_time': masageDateToHour(tmp['start_time']),
-  //     'price': tmp['price'],
-  //     'worker_name': tmp['name'],
-  //     'id': tmp['hourlyorders_id']
-  //   }
-  // }
   }
+  console.log(send_data)
   res.send(send_data);
 })
 
-/* 4. masage data */
-app.use('/owner/mypage/work2', async (req, res, next) => {
-  let send_data = {};
-  send_data['key'] = Array();
+/* 사장님 홈 - 나의긱워커 */
+/* input : { 'owner_id': 60 } */
 
-  let len = req.body['hourly_orders'].length;
-  let date;
-  let type;
-  let order_id;
-  let tmp;
-  let key;
-  for (let i = 0; i < len; i++) {
-    tmp = req.body['hourly_orders'][i];
-    date = masageDateToYearMonthDay(tmp['work_date']);
-    type = tmp['type'];
-    order_id = tmp['order_id'].toString();
-    key = date+','+type+','+order_id
-    
-    /* key가 배열에 없으면 넣어 주고 */
-    if (send_data['key'].indexOf(key) === -1)
-      send_data['key'].push(key)
-
-    /* key로 찾아갈 value 생성 */
-    send_data[key] = {
-      'start_time': masageDateToHour(tmp['start_time']),
-      'price': tmp['price'],
-      'worker_name': tmp['name'],
-      'id': tmp['hourlyorders_id']
-    }
+/* 1. owner_id로 store_id 가져온 후 qualifications 테이블에서 worker_id들 가져오기 */
+app.post('/owner/mypage/myWorker', getStoreIdByOwnerId, async (req, res, next) => {
+  const con = await pool.getConnection(async conn => conn);
+  
+  /* worker_id를 모두 담은 배열 가져오기 */
+  let worker_ids = await getWorkerIdByStoreId(req.body['store_id']);
+  
+  /* workers 테이블에서 worker_id에 해당하는 name 가져오기 */
+  const sql = `SELECT name FROM workers WHERE worker_id IN (${worker_ids})`
+  const [result] = await con.query(sql);
+  
+  /* masage data */
+  let worker_names = new Array();
+  for (let i = 0; i < result.length; i++) {
+    worker_names.push(result[i]['name'])
   }
+
+  let send_data = {
+    'workers': worker_names
+  }
+  con.release();
   res.send(send_data);
 })
+
+/* store_id에 해당하는 모든 worker_id를 배열로 return */
+async function getWorkerIdByStoreId (store_id) {
+  const con = await pool.getConnection(async conn => conn);
+  const sql = `SELECT FK_qualifications_workers AS worker_id FROM qualifications WHERE FK_qualifications_stores='${store_id}'` 
+  const [result] = await con.query(sql);
+  console.log(result)
+  
+  let worker_ids = new Array();
+  for (let i = 0; i < result.length; i++) {
+    worker_ids.push(result[i]['worker_id'])
+  }
+
+  con.release();
+  return worker_ids;
+}
 
 /********************************************************
  *                      function                        *
@@ -1287,7 +1243,7 @@ function masage_data(latitude, longitude, data) {
           databox[check[d['name']]]['work_date_and_type_and_id'][[d['work_date'], d['type'], d['order_id']]]['start_time_and_id'].push([d['start_time'], d['hourlyorders_id']]);
       }
   }
-  // console.log(util.inspect(databox, {depth:10}));
+  console.log(util.inspect(databox, {depth:10}));
   return databox;
 }
 
@@ -1368,13 +1324,11 @@ async function getOwnerIdByEmail(req, res, next) {
 
 /* owner_id로 stores 테이블에서 store id 가져오기 */
 async function getStoreIdByOwnerId (req, res, next) {
-  console.log(req.body)
   const con = await pool.getConnection(async conn => conn);
 
   try {
     const sql = "SELECT store_id FROM stores WHERE FK_stores_owners=?";
     const [result] = await con.query(sql, req.body['owner_id']);
-    console.log(result)
     req.body['store_id'] = result[0]['store_id'];
     con.release();
     next();
@@ -1439,6 +1393,7 @@ async function getJobIdByType(req, res, next) {
     const sql = "SELECT job_id FROM jobs WHERE type=?";
     const [result] = await con.query(sql, req.body['type']);
     req.body['job_id'] = result[0]['job_id'];
+    con.release();
     next();
   }
   catch {
@@ -1507,6 +1462,7 @@ function recur(idx, start_times, latitude, longitude, dict, hourly_orders, sum) 
   return Math.max.apply(null, array);
 }
 
+/*  */
 
 
 

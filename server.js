@@ -41,7 +41,97 @@ const pool = mysql.createPool({
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
 app.use(bodyParser.json());
+/****** webrtc - interview ******/
+const SOCK_PORT = process.env.PORT || 8080;
+let http = require('http');
+let server = http.createServer(app);
+let socketio = require('socket.io');
+let io = socketio.listen(server);
+let socketToRoom = {};
+let users = {};
 
+const maximum = 2;
+
+io.on('connection', (socket) => {
+    socket.on('join_room', (data) => {
+        if (users[data.room]) {
+            const length = users[data.room].length;
+            if (length === maximum) {
+                socket.to(socket.id).emit('room_full');
+                return;
+            }
+            users[data.room].push({ id: socket.id });
+        } else {
+            users[data.room] = [{ id: socket.id }];
+        }
+        socketToRoom[socket.id] = data.room;
+
+        socket.join(data.room);
+        // console.log(`[${socketToRoom[socket.id]}]: ${socket.id} enter`);
+
+        const usersInThisRoom = users[data.room].filter((user) => user.id !== socket.id);
+
+        // console.log(usersInThisRoom);
+
+        io.sockets.to(socket.id).emit('all_users', usersInThisRoom);
+    });
+
+    socket.on('offer', (sdp) => {
+        // console.log('offer: ' + socket.id);
+        socket.broadcast.emit('getOffer', sdp);
+    });
+
+    socket.on('answer', (sdp) => {
+        // console.log('answer: ' + socket.id);
+        socket.broadcast.emit('getAnswer', sdp);
+    });
+
+    socket.on('candidate', (candidate) => {
+        // console.log('candidate: ' + socket.id);
+        socket.broadcast.emit('getCandidate', candidate);
+    });
+
+    socket.on('disconnect', () => {
+        // console.log(`[${socketToRoom[socket.id]}]: ${socket.id} exit`);
+        const roomID = socketToRoom[socket.id];
+        let room = users[roomID];
+        if (room) {
+            room = room.filter((user) => user.id !== socket.id);
+            users[roomID] = room;
+            if (room.length === 0) {
+                delete users[roomID];
+                return;
+            }
+        }
+        socket.broadcast.to(room).emit('user_exit');
+        console.log(users);
+    });
+
+    socket.on('leave_room', () => {
+        const roomID = socketToRoom[socket.id];
+        console.log('server roomID:', roomID);
+        socket.leave('roomID');
+
+        socket.broadcast.emit(`${roomID}`, '상대방이 나갔습니다.');
+    });
+});
+
+server.listen(SOCK_PORT, () => {
+    console.log(`socket server running on ${SOCK_PORT}`);
+});
+
+app.post('/interview', (req, res, next) => {
+    const interviewId = req.body['interviewId'];
+    for (const roomName of Object.values(socketToRoom)) {
+        if (parseInt(roomName) === interviewId) {
+            return res.send({ enter: true, room: roomName });
+        }
+    }
+
+    return res.send({ enter: false });
+});
+
+/**********************************/
 app.get("/", (req, res) => {
   res.send({ hello: "Hello react" });
 });
@@ -1977,7 +2067,7 @@ app.post('/mypage/interview', async (req, res) => {
   worker_id = req.body['worker_id'];
   cards = [];
   // console.log(worker_id);
-  const sql = `SELECT a.FK_interviews_stores, a.interview_date, a.FK_interviews_interview_times, 
+  const sql = `SELECT a.interview_id, a.FK_interviews_stores, a.interview_date, a.FK_interviews_interview_times, 
   a.reject_flag, a.result_flag, a.link, a.state, b.name, b.address, c.time
   From interviews as a, stores as b, interview_times as c 
   where a.FK_interviews_stores = b.store_id and a.FK_interviews_interview_times = c.interview_time_id 
@@ -2005,7 +2095,7 @@ app.post('/mypage/interview', async (req, res) => {
     result_flag = result[i]['result_flag'];
     link = result[i]['link'];
     state = result[i]['state'];
-
+    interview_id = result[i]['interview_id'];
     store_name = result[i]['name'];
     store_address = result[i]['address'];
     store_type = result_type.map(result_type => result_type['type']);
@@ -2017,7 +2107,7 @@ app.post('/mypage/interview', async (req, res) => {
         'result_flag': result_flag,
         'link': link,
         'state': state,
-
+        'interview_id': interview_id,
         'store_name': store_name,
         'store_address': store_address,
         'store_type': store_type

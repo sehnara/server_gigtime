@@ -15,8 +15,11 @@ const pool = mysql.createPool({
   user: "admin",
   password: "dnjstnddlek",
   database: "gig_time",
-  connectionLimit: 10
+  connectionLimit: 1000,
+  multipleStatements : true
 });
+
+const multi_con = mysql
 
 /* 사장님 사장님 최저시급 설정 페이지 */
 /* owner db에 사장님 회원정보 INSERT & store db에 가게정보 INSERT */
@@ -36,8 +39,9 @@ data form
 } 
 */
 // 이거 하기 전에 들어온 데이터가 정확한지 체크하는 과정이 필요
-signupRouter.post('/signup', getPos, async (req, res) => {
+signupRouter.post('/', getPos, async (req, res) => {
     const con = await pool.getConnection(async conn => conn);
+    console.log('start signup');
   
     try {
       /* 먼저, owners 테이블에 name, eamil, phone INSERT */
@@ -47,10 +51,10 @@ signupRouter.post('/signup', getPos, async (req, res) => {
       /* 다음으로, owners 테이블에서 owner_id SELECT */
       const sql2 = "SELECT owner_id FROM owners WHERE email=?";
       const [sql2_result] = await con.query(sql2, req.body['email'])
-  
+      
       /* 마지막으로, stores db에 INSERT */
       let tmp = {
-        'FK_stores_owners': sql2_result['owner_id'],
+        'FK_stores_owners': sql2_result[0]['owner_id'],
         'name': req.body['store_name'],
         'address': req.body['location'],
         'latitude': req.body['latitude'],
@@ -60,15 +64,33 @@ signupRouter.post('/signup', getPos, async (req, res) => {
       }
       const sql3 = "INSERT INTO stores SET ?";
       await con.query(sql3, tmp)
-  
+      
+      console.log('sql2:', sql2_result[0]['owner_id']);
+      console.log('sql4:', req.body['store_name']);
+
+      const sql4 = "SELECT store_id FROM stores WHERE FK_stores_owners=?";
+      const [sql4_result] = await con.query(sql4, sql2_result[0]['owner_id'])
+
+      console.log('sql4:', sql4_result);
+      console.log('req:', req.body['store_jobs'][0]);
+
+      const types = req.body['store_jobs'][0];  // 딕셔너리 배열
+      const n = types.length;
+      let tmp_sql = '';
+      for(let i=0; i<n; i++){
+        tmp_sql += `insert into store_job_lists (FK_store_job_lists_stores, FK_store_job_lists_jobs) select '${sql4_result[0]['store_id']}', job_id from jobs where type = '${types[i]['name']}';
+        `;
+      }
+      console.log(tmp_sql);
+      const [sql5_result] = await con.query(tmp_sql);
       console.log('owner signup success!');
       con.release();
-      res.send('success');
+      res.send({id:sql2_result[0]['owner_id'], result:'success'});
     }
     catch {
       console.log('error');
       con.release();
-      res.send('error');
+      res.send('error-owner/signup');
     }
 })
   

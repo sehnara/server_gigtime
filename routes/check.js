@@ -14,7 +14,7 @@ const pool = mysql.createPool({
 checkRouter.post('/member', async (req, res, next) => {
   if (await checkOwner(req.body['email']) > 0) {
     const con = await pool.getConnection(async conn => conn);
-    const sql = `SELECT owner_id FROM owners WHERE email=${req.body['email']}`
+    const sql = `SELECT owner_id FROM owners WHERE email='${req.body['email']}'`
     const [result] = await con.query(sql);
     let send_array = ['owner', result[0]['owner_id']]
     con.release();

@@ -9,6 +9,7 @@ const reservationRouter = require('./worker/reservation');
 const showRouter = require('./worker/show');
 const suggestionRouter = require('./worker/suggestion');
 const mypageRouter = require('./worker/mypage');
+const addrRouter = require('./worker/addr');
 
 
 workerRouter.use('/signup', signupRouter);
@@ -19,6 +20,7 @@ workerRouter.use('/reservation', reservationRouter);
 workerRouter.use('/show', showRouter);
 workerRouter.use('/suggestion', suggestionRouter);
 workerRouter.use('/mypage', mypageRouter);
+workerRouter.use('/addr', addrRouter);
 
  
 module.exports = workerRouter;

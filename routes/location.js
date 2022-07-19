@@ -32,8 +32,10 @@ const pool = mysql.createPool({
     const sql = "UPDATE workers SET location=?, latitude=?, longitude=? WHERE email=?";
     try {
       await con.query(sql, [req.body['location'], req.body['latitude'], req.body['longitude'], req.body['email']])
+      con.release();
       res.send('success');
     } catch {
+      con.release();
       res.send('error');
     }
   })
@@ -128,8 +130,10 @@ locationRouter.post('/', async (req, res) => {
     const sql = "SELECT `location` FROM workers WHERE email=?";
     try {
       const [result] = await con.query(sql, req.body['email']);
+      con.release();
       res.send(result[0]['location']); 
     } catch {
+      con.release();
       res.send('error');
     }
   });

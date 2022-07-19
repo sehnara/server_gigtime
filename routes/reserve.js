@@ -38,6 +38,7 @@ reserveRouter.post('/load_store', async (req, res) => {
     store['owner_name'] = owner_info[0]['name'];
     store['owner_phone'] = owner_info[0]['phone'];
     // console.log(store);
+    con.release();
     res.send(store);
   });
   

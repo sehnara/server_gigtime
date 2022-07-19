@@ -37,8 +37,10 @@ reservationRouter.post('/list', async (req, res, next) => {
     try {
         const [result] = await con.query(sql, req.body['type'])
         req.body['job_id'] = result[0]['job_id'];
+        con.release();
         next();
     } catch {
+        con.release();
         res.send('error');
     }
 })
@@ -51,8 +53,10 @@ reservationRouter.use('/list', async (req, res) => {
     try{
         const [result] = await con.query(sql, [req.body['order_id'],req.body['work_date'],req.body['job_id']])
         console.log(result);
-        res.send(result)
+        con.release();
+        res.send(result);
     } catch {
+        con.release();
         res.send('error');
     }
 })
@@ -78,6 +82,7 @@ reservationRouter.post('/save', async (req, res) => {
         await con.query(sql, [req.body['worker_id'], timestamp, req.body['hourlyorder_id'][i]]); 
     }
     check_all_hourlyorders_true(req.body['hourlyorder_id'][0]);
+    con.release();
     res.send('success');
   })
 

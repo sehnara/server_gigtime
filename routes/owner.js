@@ -67,10 +67,12 @@ ownerRouter.post('/signup', getPos, async (req, res) => {
       await con.query(sql3, tmp)
   
       console.log('owner signup success!');
+      con.release();
       res.send('success');
     }
     catch {
       console.log('error');
+      con.release();
       res.send('error');
     }
   })
@@ -105,9 +107,11 @@ ownerRouter.post('/mypage/employment/button', async (req, res, next) => {
     req.body['name'] = result[0]['name'];
     req.body['address'] = result[0]['address'];
     req.body['store_id'] = result[0]['store_id'];
+    con.release();
     next();
   }
   catch {
+    con.release();
     res.send('error');
   }
 })
@@ -119,9 +123,6 @@ ownerRouter.use('/mypage/employment/button', getJobIdByStoreId, async (req, res)
   delete req.body['store_id'];
   res.send(req.body);
 })
-
-ownerRouter.use('/employment', employmentRouter);
-ownerRouter.use('/mypage', ownerMypageRouter);
 
 ownerRouter.post('/interview', async (req, res) => {
   //console.log(req.body);
@@ -204,9 +205,12 @@ ownerRouter.post('/interview', async (req, res) => {
 
 // res.send(dummy)
   console.log(cards);
+  con.release();
   res.send(cards);
 });
 
+ownerRouter.use('/employment', employmentRouter);
+ownerRouter.use('/mypage', ownerMypageRouter);
 
 module.exports = ownerRouter;
 

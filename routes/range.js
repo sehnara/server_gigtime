@@ -32,9 +32,11 @@ rangeRouter.post('/update', async (req, res) => {
     const sql = "UPDATE workers SET `range`=? WHERE worker_id=?";
     try {
         await con.query(sql, [req.body['range'], req.body['worker_id']]);
-        res.send('success');
+      con.release();
+      res.send('success');
     } catch {
-        res.send('error');
+      con.release();
+      res.send('error');
     }
 })
 
@@ -45,8 +47,10 @@ rangeRouter.post('/', async (req, res) => {
     const sql = "SELECT `range` FROM workers WHERE email=?";
     const [result] = await con.query(sql, req.body['email'])
     try {
+      con.release();
       res.send(result[0]['range'].toString()); // string 형태로만 통신 가능
     } catch {
+      con.release();
       res.send('error');
     }
 });

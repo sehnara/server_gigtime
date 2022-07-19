@@ -35,18 +35,19 @@ applyRouter.post('/load_store', async (req, res) => {
     store['owner_name'] = owner_info[0]['name'];
     store['owner_phone'] = owner_info[0]['phone'];
     // console.log(store);
+    con.release();
     res.send(store);
-  });
+});
   
-  calendar = { 1: 31, 2: 28, 3: 31, 4: 30, 5: 31, 6: 30, 7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31 };
-  hours = { 10: 0, 11: 1, 13: 2, 14: 3, 15: 4, 16: 5, 17: 6, 19: 7, 20: 8, 21: 9 };
-  times = [];
-  for (a = 0; a <= 31; a += 1) {
+calendar = { 1: 31, 2: 28, 3: 31, 4: 30, 5: 31, 6: 30, 7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31 };
+hours = { 10: 0, 11: 1, 13: 2, 14: 3, 15: 4, 16: 5, 17: 6, 19: 7, 20: 8, 21: 9 };
+times = [];
+for (a = 0; a <= 31; a += 1) {
     times.push([10, 11, 13, 14, 15, 16, 17, 19, 20, 21]);
-  }
+}
   
-  // 'store_id' : 1, 'interview_month' : 3
-  applyRouter.post('/load_interview', async (req, res) => {
+// 'store_id' : 1, 'interview_month' : 3
+applyRouter.post('/load_interview', async (req, res) => {
     const con = await pool.getConnection(async conn => conn);
     console.log("11111111", req.body);
     store_id = req.body['store_id'];
@@ -94,15 +95,16 @@ applyRouter.post('/load_store', async (req, res) => {
     }
     // console.log(">>>>>>>>>>>>", result);
     // return result;
+    con.release();
     res.send(result);
-  });
+});
   
-  // 'interview_date' : 2022-07-18    // (날짜), 
-  // 'interview_time' : 10    // (시간), 
-  // 'question' : "쥐 나오나요"   // (질문)
-  // 'worker_id' : 1  // (알바생id), 
-  // 'store_id' : 1   // (가게id), 
-  applyRouter.post('/submit', async (req, res) => {
+// 'interview_date' : 2022-07-18    // (날짜), 
+// 'interview_time' : 10    // (시간), 
+// 'question' : "쥐 나오나요"   // (질문)
+// 'worker_id' : 1  // (알바생id), 
+// 'store_id' : 1   // (가게id), 
+applyRouter.post('/submit', async (req, res) => {
     const con = await pool.getConnection(async conn => conn);
     console.log(req.body);
     interview_date = req.body['interview_date'];
@@ -135,6 +137,7 @@ applyRouter.post('/load_store', async (req, res) => {
     if (check_result[0]) {
         // console.log('yes');
         // response = '안됨. 다른면접있음.';
+        con.release();
         res.send('안됨. 다른면접있음.');
     } 
     else{
@@ -143,13 +146,11 @@ applyRouter.post('/load_store', async (req, res) => {
             request_date, interview_date, FK_interviews_interview_times, question) 
             VALUES (${store_id}, ${worker_id}, '${new_date}', '${interview_date}', '${tmp}', '${question}');`;
         const [result] = await con.query(sql);
-        console.log(result);
-        if (result) {
-            res.send('신청 완료!'); // 메세지만 ?   
-            // res.redirect('/');             // 홈으로  ?     
-        }
+
+        con.release();
+        res.send('신청 완료!'); // 메세지만   
     }
-  });
+});
   
 module.exports = applyRouter;
 

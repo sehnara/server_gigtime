@@ -59,9 +59,11 @@ mypageRouter.post('/work', async (req, res, next) => {
     const [result] = await con.query(sql);
     try {
       req.body['hourly_orders'] = result;
-      next();
+        con.release();
+        next();
     } catch {
-      res.send('error');
+        con.release();
+        res.send('error');
     }
   })
   
@@ -144,6 +146,7 @@ mypageRouter.post('/myStore', async (req, res, next) => {
     }
   
     req.body['store_ids'] = store_ids;
+    con.release();
     next();
   })
   
@@ -178,6 +181,7 @@ mypageRouter.use('/myStore', async (req, res) => {
     
     /* result에 최종 send 형태로 담았음 */
     console.log(result);
+    con.release();
     res.send(result);
   })
 
@@ -246,6 +250,7 @@ mypageRouter.post('/interview', async (req, res) => {
             'result': cards
         }
         // console.log(response);
+    con.release();
     res.send(response);
 });
   

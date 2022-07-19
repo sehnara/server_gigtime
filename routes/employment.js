@@ -32,52 +32,52 @@ const pool = mysql.createPool({
 employmentRouter.post('/', getStoreIdByOwnerId, async (req, res, next) => { 
     console.log(req.body)
     next(); 
-  })
+})
   
-  /* 3. jobs 테이블에서 type으로 job_id 가져오기 */
-  employmentRouter.use('/', getJobIdByType, async (req, res, next) => { next(); })
+/* 3. jobs 테이블에서 type으로 job_id 가져오기 */
+employmentRouter.use('/', getJobIdByType, async (req, res, next) => { next(); })
   
-  /* 4. orders 테이블에 INSERT */
-  employmentRouter.use('/', async (req, res, next) => {
+/* 4. orders 테이블에 INSERT */
+employmentRouter.use('/', async (req, res, next) => {
     const con = await pool.getConnection(async conn => conn);
   
     try {
-      const sql = "INSERT INTO orders SET FK_orders_stores=?, request_date=?, FK_orders_jobs=?, description=?, min_price=?, status=?";
-      let request_date = new Date();
-      await con.query(sql, [req.body['store_id'], request_date, req.body['job_id'], req.body['description'], req.body['price'], 0])
-      req.body['request_date'] = request_date;
-      con.release();
-      next();
+        const sql = "INSERT INTO orders SET FK_orders_stores=?, request_date=?, FK_orders_jobs=?, description=?, min_price=?, status=?";
+        let request_date = new Date();
+        await con.query(sql, [req.body['store_id'], request_date, req.body['job_id'], req.body['description'], req.body['price'], 0])
+        req.body['request_date'] = request_date;
+        con.release();
+        next();
     }
     catch {
-      con.release();
-      console.log('error 4');
+        con.release();
+        console.log('error 4');
     }
-  })
-  
-  /* 5. orders 테이블에서 request_date로 order_id 가져오기 */
-  employmentRouter.use('/', async (req, res, next) => {
+})
+
+/* 5. orders 테이블에서 request_date로 order_id 가져오기 */
+employmentRouter.use('/', async (req, res, next) => {
     const con = await pool.getConnection(async conn => conn);
   
     try {
-      // const sql = "SELECT order_id FROM orders WHERE request_date=?"; // 이거 request_date로 하면 안된다. 마지막 행을 읽자
-      const sql = "SELECT order_id FROM orders ORDER BY order_id DESC LIMIT 1";
-      /* check! */
-      // 마지막 행을 읽는데 만약 여기서 다른 request가 들어와서 마지막이 아니게 된다면?
-      // 그럴 수 있나? 그럴 수 있다면, 해결책은?
-      const [result] = await con.query(sql, masageDateToYearMonthDayHourMinSec(req.body['request_date']));
-      req.body['order_id'] = result[0]['order_id']; // result[0]인 것 주의
-      con.release();
-      next();
+        // const sql = "SELECT order_id FROM orders WHERE request_date=?"; // 이거 request_date로 하면 안된다. 마지막 행을 읽자
+        const sql = "SELECT order_id FROM orders ORDER BY order_id DESC LIMIT 1";
+        /* check! */
+        // 마지막 행을 읽는데 만약 여기서 다른 request가 들어와서 마지막이 아니게 된다면?
+        // 그럴 수 있나? 그럴 수 있다면, 해결책은?
+        const [result] = await con.query(sql, masageDateToYearMonthDayHourMinSec(req.body['request_date']));
+        req.body['order_id'] = result[0]['order_id']; // result[0]인 것 주의
+        con.release();
+        next();
     }
     catch {
-      con.release();
-      console.log('error 5');
+        con.release();
+        console.log('error 5');
     }
   })
   
-  /* 6. hourly_orders 테이블에 INSERT */
-  employmentRouter.use('/', async (req, res) => {
+/* 6. hourly_orders 테이블에 INSERT */
+employmentRouter.use('/', async (req, res) => {
     const con = await pool.getConnection(async conn => conn);
   
     /* 6-1. 총 일수 계산 */
@@ -92,47 +92,47 @@ employmentRouter.post('/', getStoreIdByOwnerId, async (req, res, next) => {
     
     /* 6-3. for문 돌면서 hourly_orders 테이블에 INSERT */
     try {
-      // const sql = "INSERT INTO hourly_orders SET FK_hourlyorders_orders=?, work_date=?, start_time=?"; 
-      const sql = "INSERT INTO hourly_orders (FK_hourlyorders_orders, work_date, start_time) VALUES ?";
-      let order_id = req.body['order_id'];
-      let date = new Date(start_date);
-      
-      /* 시간을 담은 배열 생성 */
-      let all_hours = Array();
-      for (let i = 0; i < hour; i++) {
-        if (start_hour.toString().length === 1)      
-          all_hours.push('0'+(start_hour+i).toString()+':00:00')
-        else
-          all_hours.push((start_hour+i).toString()+':00:00')
-      }
-  
-      /* check! (완료) */
-      /* 매번 INSERT query를 실행하면 너무 무거울 것 같은데, INSERT 한 번에 끝내는 법을 알아보자 */
-      /* 날짜 순회 */
-      let insert_array = Array();
-      for (let i = 0; i < day; i++) {
-        date.setDate(start_date.getDate()+i);
-        // let work_date = new Date(masageDateToYearMonthDay(date)); // 불필요. 그냥 string으로 넣으면 된다
-        // console.log(work_date);
-  
-        /* 시간 순회 */
-        for (let j = 0; j < hour; j++) {
-          // let start_time = new Date(masageDateToYearMonthDay(date)+' '+all_hours[j]); // 불필요.
-          insert_array.push([order_id, masageDateToYearMonthDay(date), masageDateToYearMonthDay(date)+' '+all_hours[j]])
-          // await con.query(sql, [order_id, masageDateToYearMonthDay(date), masageDateToYearMonthDay(date)+' '+all_hours[j]])
+        // const sql = "INSERT INTO hourly_orders SET FK_hourlyorders_orders=?, work_date=?, start_time=?"; 
+        const sql = "INSERT INTO hourly_orders (FK_hourlyorders_orders, work_date, start_time) VALUES ?";
+        let order_id = req.body['order_id'];
+        let date = new Date(start_date);
+        
+        /* 시간을 담은 배열 생성 */
+        let all_hours = Array();
+        for (let i = 0; i < hour; i++) {
+            if (start_hour.toString().length === 1)      
+                all_hours.push('0'+(start_hour+i).toString()+':00:00')
+            else
+                all_hours.push((start_hour+i).toString()+':00:00')
         }
-      }
-      // console.log(insert_array);
-      console.log(insert_array);
-      await con.query(sql, [insert_array]);
-      con.release();
-      res.send('success');
+  
+        /* check! (완료) */
+        /* 매번 INSERT query를 실행하면 너무 무거울 것 같은데, INSERT 한 번에 끝내는 법을 알아보자 */
+        /* 날짜 순회 */
+        let insert_array = Array();
+        for (let i = 0; i < day; i++) {
+            date.setDate(start_date.getDate()+i);
+            // let work_date = new Date(masageDateToYearMonthDay(date)); // 불필요. 그냥 string으로 넣으면 된다
+            // console.log(work_date);
+    
+            /* 시간 순회 */
+            for (let j = 0; j < hour; j++) {
+            // let start_time = new Date(masageDateToYearMonthDay(date)+' '+all_hours[j]); // 불필요.
+            insert_array.push([order_id, masageDateToYearMonthDay(date), masageDateToYearMonthDay(date)+' '+all_hours[j]])
+            // await con.query(sql, [order_id, masageDateToYearMonthDay(date), masageDateToYearMonthDay(date)+' '+all_hours[j]])
+            }
+        }
+        // console.log(insert_array);
+        console.log(insert_array);
+        await con.query(sql, [insert_array]);
+        con.release();
+        res.send('success');
     } 
     catch {
-      con.release();
-      console.log('error 6');
+        con.release();
+        console.log('error 6');
     }
-  })
+})
 
   
 module.exports = employmentRouter;

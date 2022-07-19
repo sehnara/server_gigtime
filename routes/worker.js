@@ -47,6 +47,7 @@ workerRouter.post('/signup', getPos, async (req, res, next) => {
     const con = await pool.getConnection(async conn => conn);
     const sql = "INSERT INTO workers SET ?";
     await con.query(sql, req.body);
+    con.release();
     next();
 })
   
@@ -55,6 +56,7 @@ workerRouter.use('/signup', async (req, res) => {
     const con = await pool.getConnection(async conn => conn);
     const sql = "SELECT worker_id FROM workers WHERE email=?";
     const [result] = await con.query(sql, req.body['email']);
+    con.release();
     res.send(result[0]['worker_id'].toString())
 })
   
@@ -73,8 +75,10 @@ workerRouter.post('/id', async (req, res) => {
   
     const [result] = await con.query(sql, req.body['email'])
     try {
+      con.release();
       res.send(result[0]['worker_id'].toString());
     } catch {
+      con.release();
       res.send('error');
     }
 })

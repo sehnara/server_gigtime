@@ -17,9 +17,11 @@ checkRouter.post('/member', async (req, res, next) => {
     const sql = `SELECT owner_id FROM owners WHERE email=${req.body['email']}`
     const [result] = await con.query(sql);
     let send_array = ['owner', result[0]['owner_id']]
+    con.release();
     res.send(send_array);
   }
   else 
+    con.release();
     next();
 });
 
@@ -35,9 +37,11 @@ checkRouter.use('/member', async (req, res) => {
       'address': result[0]['location'],
       'range': result[0]['range']
     }
+    con.release();
     res.send(send_array);
   }
   else 
+    con.release();
     res.send(['NONE'])
 });
   
@@ -52,6 +56,7 @@ async function checkOwner(email) {
   /* 우선 owners db 확인 (더 적으니까) */
   const sql = `SELECT * FROM owners WHERE email=?`;
   const [result] = await con.query(sql, email);
+  con.release();
   if (result.length > 0) return 1;
   else return 0;
 }
@@ -63,6 +68,7 @@ async function checkWorker(email) {
   /* 우선 owners db 확인 (더 적으니까) */
   const sql = `SELECT * FROM workers WHERE email=?`;
   const [result] = await con.query(sql, email);
+  con.release();
   if (result.length > 0) return 1; 
   else return 0;
 }

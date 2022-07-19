@@ -16,10 +16,10 @@ const pool = mysql.createPool({
 /* 1. owners 테이블에서 owner_id로 FK_orders_stores 가져오기 */
 ownerMypageRouter.post('/work', getStoreIdByOwnerId, async (req, res, next) => {
     next();
-  })
+})  
   
-  /* 2. order 테이블에서 store_id로 order_id 배열에 담기 */
-  ownerMypageRouter.use('/work', async (req, res, next) => {
+/* 2. order 테이블에서 store_id로 order_id 배열에 담기 */
+ownerMypageRouter.use('/work', async (req, res, next) => {
     const con = await pool.getConnection(async conn => conn);
     const sql = `SELECT order_id FROM orders WHERE FK_orders_stores=${req.body['store_id']} AND (status=0 OR status=1)`
     const [result] = await con.query(sql);
@@ -30,11 +30,11 @@ ownerMypageRouter.post('/work', getStoreIdByOwnerId, async (req, res, next) => {
     console.log(req.body)
     con.release();
     next();
-  })
+})
   
-  /* 3. hourly_orders 테이블에서 order_id에 해당하는 모든 row 가져오기 */
-  // orders, workers, jobs 테이블에서 필요한 정보만 추가로 JOIN
-  ownerMypageRouter.use('/work', async (req, res, next) => {
+/* 3. hourly_orders 테이블에서 order_id에 해당하는 모든 row 가져오기 */
+// orders, workers, jobs 테이블에서 필요한 정보만 추가로 JOIN
+ownerMypageRouter.use('/work', async (req, res, next) => {
     const con = await pool.getConnection(async conn => conn);
     const sql = `SELECT A.*, B.order_id, B.min_price AS price, C.name, D.type FROM hourly_orders A 
                  INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id
@@ -46,40 +46,41 @@ ownerMypageRouter.post('/work', getStoreIdByOwnerId, async (req, res, next) => {
     console.log(result.length)
     con.release();
     next();
-  })
+})
   
-  /* 4. masage data */
-  ownerMypageRouter.use('/work', async (req, res, next) => {
-    let send_data = new Array();
-  
-    let len = req.body['hourly_orders'].length;
-    let tmp;
-    let date;
-    let type;
-    let order_id;
-    let check = {};
-    let idx = 0;
-    for (let i = 0; i < len; i++) {
-      let key = new Array();
-      tmp = req.body['hourly_orders'][i];
-      key.push(masageDateToYearMonthDay(tmp['work_date']));
-      key.push(tmp['type']);
-      key.push(tmp['order_id']);
-  
-      /* 이미 저장된 key인지 확인 */
-      if (!check.hasOwnProperty(key)) {
-        send_data.push(key);
-        check[Object.assign(new Array(), key)] = idx;
-        idx += 1;
-      }
-  
-      send_data[check[key]].push(
-        masageDateToHour(tmp['start_time'])+','+tmp['price'].toString()+','+tmp['name']+','+tmp['hourlyorders_id']
-      )
+/* 4. masage data */
+ownerMypageRouter.use('/work', async (req, res, next) => {
+  let send_data = new Array();
+
+  let len = req.body['hourly_orders'].length;
+  let tmp;
+  let date;
+  let type;
+  let order_id;
+  let check = {};
+  let idx = 0;
+  for (let i = 0; i < len; i++) {
+    let key = new Array();
+    tmp = req.body['hourly_orders'][i];
+    key.push(masageDateToYearMonthDay(tmp['work_date']));
+    key.push(tmp['type']);
+    key.push(tmp['order_id']);
+
+    /* 이미 저장된 key인지 확인 */
+    if (!check.hasOwnProperty(key)) {
+      send_data.push(key);
+      check[Object.assign(new Array(), key)] = idx;
+      idx += 1;
     }
-    console.log(send_data)
-    res.send(send_data);
-  })
+
+    send_data[check[key]].push(
+      masageDateToHour(tmp['start_time'])+','+tmp['price'].toString()+','+tmp['name']+','+tmp['hourlyorders_id']
+    )
+  }
+  console.log(send_data)
+  con.release();
+  res.send(send_data);
+})
 
 /* 사장님 홈 - 나의긱워커 */
 /* input : { 'owner_id': 60 } */
@@ -123,8 +124,10 @@ ownerMypageRouter.post('/', async (req, res) => {
     // console.log(result_store)
     const store_name = result_store[0]['name'];
     // console.log(owner_name, store_name);
+    con.release();
     res.send({'name':owner_name, 'store':store_name});
   } catch {
+    con.release();
     res.send('error');
   }
 
@@ -160,11 +163,11 @@ ownerMypageRouter.post('/interview/accept', async (req, res) => {
     con.release();
     res.send(`error - ${msg}`);
   } 
-  });
+});
   
-  /* state = 3일 때  */
-  /* {inerview_id:1, value:true/false} */
-  ownerMypageRouter.post('/interview/result', async (req, res) => {
+/* state = 3일 때  */
+/* {inerview_id:1, value:true/false} */
+ownerMypageRouter.post('/interview/result', async (req, res) => {
   const con = await pool.getConnection(async conn => conn);
   console.log('result');
   let msg = '';
@@ -183,12 +186,14 @@ ownerMypageRouter.post('/interview/accept', async (req, res) => {
     }
     // const [result] = await con.query(sql);
     // console.log('result: ',result);
+    con.release();
     res.send('success');
   }
   catch{
+    con.release();
     res.send(`error - ${msg}`);
   } 
-  });
+});
   
 module.exports = ownerMypageRouter;
 

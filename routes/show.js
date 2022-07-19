@@ -3,19 +3,19 @@ const showRouter = Router();
 const mysql = require("mysql2/promise");
 
 const pool = mysql.createPool({
-  host: "albadb.cpew3pq0biup.ap-northeast-2.rds.amazonaws.com",
-  user: "admin",
-  password: "dnjstnddlek",
-  database: "gig_time",
-  connectionLimit: 10
+    host: "albadb.cpew3pq0biup.ap-northeast-2.rds.amazonaws.com",
+    user: "admin",
+    password: "dnjstnddlek",
+    database: "gig_time",
+    connectionLimit: 10
 });
 
 /* 알바 모집 정보 return (지정 거리 이내)
    data form === 
-  {
+{
     'worker_id': 1
-  } */
-  showRouter.post('/hourly_orders', async (req, res, next) => {
+} */
+showRouter.post('/hourly_orders', async (req, res, next) => {
     console.log(req.body);
     const con = await pool.getConnection(async conn => conn);
     /* 1. 해당 order에 해당하는 hourly_order 가져오기. */
@@ -31,22 +31,25 @@ const pool = mysql.createPool({
                             (SELECT FK_qualifications_stores FROM qualifications 
                                 WHERE FK_qualifications_workers=?)) AND status=0)`
     try {
-      const [valid_hourly_orders] = await con.query(sql, req.body['worker_id']);
-      req.body['valid_hourly_orders'] = valid_hourly_orders;
-      next();
+        const [valid_hourly_orders] = await con.query(sql, req.body['worker_id']);
+        req.body['valid_hourly_orders'] = valid_hourly_orders;
+        con.release();
+        next();
     } catch {
-      res.send('error');
+        con.release();
+        res.send('error');
     }  
-  });
+});
   
-  /* 2. worker의 latitude, longitude 가져오기 */
-  showRouter.use('/hourly_orders', async (req, res) => {
+/* 2. worker의 latitude, longitude 가져오기 */
+showRouter.use('/hourly_orders', async (req, res) => {
     const con = await pool.getConnection(async conn => conn);
     const sql = `SELECT latitude, longitude FROM workers WHERE worker_id=?`;
     const [result] = await con.query(sql, req.body['worker_id']);
     console.log('서버 들어옴');
+    con.release();
     res.send(masage_data(result[0]['latitude'], result[0]['longitude'], req.body['valid_hourly_orders']));
-  });
+});
   
 
 module.exports = showRouter;

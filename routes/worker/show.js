@@ -44,11 +44,16 @@ showRouter.post('/hourly_orders', async (req, res, next) => {
 /* 2. worker의 latitude, longitude 가져오기 */
 showRouter.use('/hourly_orders', async (req, res) => {
     const con = await pool.getConnection(async conn => conn);
-    const sql = `SELECT latitude, longitude FROM workers WHERE worker_id=?`;
-    const [result] = await con.query(sql, req.body['worker_id']);
-    console.log('서버 들어옴');
-    con.release();
-    res.send(masage_data(result[0]['latitude'], result[0]['longitude'], req.body['valid_hourly_orders']));
+    try {
+        const sql = `SELECT latitude, longitude FROM workers WHERE worker_id=?`;
+        const [result] = await con.query(sql, req.body['worker_id']);
+        console.log('서버 들어옴', req.body, result);        
+        con.release();
+        res.send(masage_data(result[0]['latitude'], result[0]['longitude'], req.body['valid_hourly_orders']));
+    } catch {
+        con.release();
+        res.send('error-show/hourly_orders');
+    }
 });
   
 

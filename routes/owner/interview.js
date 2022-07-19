@@ -86,25 +86,6 @@ interviewRouter.post('/', async (req, res) => {
 });
   
 
-/* state = 1(입장대기)일 때  */
-/* {inerview_id:1 } */
-interviewRouter.post('/exit', async (req, res) => {
-  // 해당 인터뷰 state 변경
-  const con = await pool.getConnection(async (conn) => conn);
-  const interview_id = req.body['interview_id'];
-  console.log('/owner/interview/exit', interview_id);
-  try {
-      const sql = `update interviews set state = 2 where interview_id = ${interview_id}`;
-      const [result] = await con.query(sql);
-      con.release();
-      res.send({ state: 'success' });
-  } catch {
-      con.release();
-      res.send({ state: 'fail' });
-  }
-});
-
-  
 module.exports = interviewRouter;
 
 /************************ function *************************/

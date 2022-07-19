@@ -19,7 +19,7 @@ applyRouter.post('/load_store', async (req, res) => {
   
     const sql_store = `SELECT FK_stores_owners, name, address, description, logo, background FROM stores WHERE store_id = ${store_id}`;
     const [store_info] = await con.query(sql_store);
-    console.log(store_info);
+    // console.log(store_info);
     owner_id = store_info[0]['FK_stores_owners'];
     // console.log('owner: ', owner_id);
     // console.log(store_info);
@@ -32,10 +32,10 @@ applyRouter.post('/load_store', async (req, res) => {
   
     const sql_owner = `SELECT name, phone FROM owners WHERE owner_id = ${owner_id}`;
     const owner_info = await con.query(sql_owner);
-    console.log('owner: ', owner_info[0]);
-    store['owner_name'] = owner_info[0]['name'];
-    store['owner_phone'] = owner_info[0]['phone'];
-    console.log('store: ', store);
+    // console.log('owner: ', owner_info[0][0]['name']);
+    store['owner_name'] = owner_info[0][0]['name'];
+    store['owner_phone'] = owner_info[0][0]['phone'];
+    // console.log('store: ', store);
     con.release();
     res.send(store);
 });

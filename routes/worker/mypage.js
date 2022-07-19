@@ -2,6 +2,7 @@ const { Router } = require('express');
 const mypageRouter = Router();
 const mysql = require("mysql2/promise");
 
+
 const pool = mysql.createPool({
   host: "albadb.cpew3pq0biup.ap-northeast-2.rds.amazonaws.com",
   user: "admin",

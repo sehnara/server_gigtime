@@ -20,9 +20,9 @@ checkRouter.post('/member', async (req, res, next) => {
     con.release();
     res.send(send_array);
   }
-  else 
-    con.release();
+  else{
     next();
+  } 
 });
 
 /* workers 테이블 체크 */
@@ -40,9 +40,9 @@ checkRouter.use('/member', async (req, res) => {
     con.release();
     res.send(send_array);
   }
-  else 
-    con.release();
+  else {
     res.send(['NONE'])
+  }
 });
   
 module.exports = checkRouter;

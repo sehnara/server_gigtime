@@ -20,7 +20,7 @@ const pool = require('./function');
     'worker_id': 1
   } */
   storeerRouter.post('/list', async (req, res) => {
-    console.log(req.body);
+    console.log('req 들어오니? ',req.body);
     const con = await pool.getConnection(async conn => conn);
     try{
         const sql = "SELECT `latitude`, `longitude`, `range` FROM workers WHERE worker_id=?";

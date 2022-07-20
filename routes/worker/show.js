@@ -1,9 +1,9 @@
 const { Router } = require('express');
 const showRouter = Router();
 const mysql = require("mysql2/promise");
-
 const pool = require('../function');
 
+let util = require('util');
 
 /* 알바 모집 정보 return (지정 거리 이내)
    data form === 
@@ -11,7 +11,6 @@ const pool = require('../function');
     'worker_id': 1
 } */
 showRouter.post('/hourly_orders', async (req, res, next) => {
-    console.log(req.body);
     const con = await pool.getConnection(async conn => conn);
     /* 1. 해당 order에 해당하는 hourly_order 가져오기. */
     // FK_hourlyorders_workers === NULL인 것만.
@@ -40,24 +39,23 @@ showRouter.post('/hourly_orders', async (req, res, next) => {
 showRouter.use('/hourly_orders', async (req, res) => {
     const con = await pool.getConnection(async conn => conn);
     try {
-        const sql = `SELECT latitude, longitude FROM workers WHERE worker_id=?`;
-        const [result] = await con.query(sql, req.body['worker_id']);
-        console.log('서버 들어옴', req.body, result);        
+        const sql = "SELECT latitude, longitude, `range` FROM workers WHERE worker_id=?";
+        const [result] = await con.query(sql, req.body['worker_id']);   
         con.release();
-        res.send(masage_data(result[0]['latitude'], result[0]['longitude'], req.body['valid_hourly_orders']));
+        res.send(masage_data(result[0]['latitude'], result[0]['longitude'], result[0]['range'], req.body['valid_hourly_orders']));
     } catch {
         con.release();
         res.send('error-show/hourly_orders');
     }
 });
-  
+
 
 module.exports = showRouter;
 
 /************************ function *************************/
 /* 주변일감 페이지 */
 /* front에 전달할 data 전처리 */
-function masage_data(latitude, longitude, data) {
+function masage_data(latitude, longitude, range, data) {
     let d;
     let len = data.length;
     let databox = [];
@@ -70,6 +68,8 @@ function masage_data(latitude, longitude, data) {
         /* 가게 이름이 없으면 새로 만들기 */
         if (!check.hasOwnProperty(d['name'])) {
             let distance = getDistance(latitude, longitude, d['latitude'], d['longitude']);
+            if (distance > range) continue; // range 범위 밖이면 pass
+
             databox.push({
                 'name': d['name'],
                 'minimum_wage': d['minimum_wage'],
@@ -95,6 +95,12 @@ function masage_data(latitude, longitude, data) {
             let date = new Date(d['work_date']);
             let n = date.getTimezoneOffset();
             databox[check[d['name']]]['key'].push([d['work_date'], d['type'], d['order_id']]);
+            
+        }
+
+        /* minimum_price 업데이트 하기 */
+        if (databox[check[d['name']]]['minimum_wage'] < d['min_price']) {
+            databox[check[d['name']]]['minimum_wage'] = d['min_price']
         }
   
         /* start_time이 없으면 새로 만들기 */
@@ -107,6 +113,17 @@ function masage_data(latitude, longitude, data) {
         }
     }
     // console.log(util.inspect(databox, { depth: 20 }));
+    
+    /* 결과를 거리 순으로 정렬 */
+    // databox.sort(function(a, b) {
+    //     var distance_A = a.distance;
+    //     var distance_B = b.distance;
+
+    //     if (distance_A < distance_B) return -1;
+    //     if (distance_A > distance_B) return 1;
+    //     return 0;
+    // })
+
     return databox;
   }
 

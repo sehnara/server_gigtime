@@ -1,8 +1,6 @@
 const { Router } = require('express');
 const mypageRouter = Router();
 const mysql = require("mysql2/promise");
-
-
 const pool = require('../function');
 
 

@@ -16,7 +16,10 @@ checkRouter.post('/member', async (req, res, next) => {
     const con = await pool.getConnection(async conn => conn);
     const sql = `SELECT owner_id FROM owners WHERE email='${req.body['email']}'`
     const [result] = await con.query(sql);
-    let send_array = ['owner', result[0]['owner_id']]
+    let send_array = {
+      'member_type':'owner', 
+      'owner_id':result[0]['owner_id']
+    }
     con.release();
     res.send(send_array);
   }

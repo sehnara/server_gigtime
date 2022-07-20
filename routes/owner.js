@@ -8,14 +8,8 @@ const interviewRouter = require('./owner/interview');
 const employmentRouter = require('./owner/employment');
 const ownerMypageRouter = require('./owner/mypage');
 
+const pool = require('./function');
 
-const pool = mysql.createPool({
-  host: "albadb.cpew3pq0biup.ap-northeast-2.rds.amazonaws.com",
-  user: "admin",
-  password: "dnjstnddlek",
-  database: "gig_time",
-  connectionLimit: 10
-});
 
 ownerRouter.use('/signup', signupRouter);
 ownerRouter.use('/interview', interviewRouter);

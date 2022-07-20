@@ -2,13 +2,8 @@ const { Router } = require('express');
 const showRouter = Router();
 const mysql = require("mysql2/promise");
 
-const pool = mysql.createPool({
-    host: "albadb.cpew3pq0biup.ap-northeast-2.rds.amazonaws.com",
-    user: "admin",
-    password: "dnjstnddlek",
-    database: "gig_time",
-    connectionLimit: 10
-});
+const pool = require('../function');
+
 
 /* 알바 모집 정보 return (지정 거리 이내)
    data form === 

@@ -2,13 +2,8 @@ const { Router } = require('express');
 const checkRouter = Router();
 const mysql = require("mysql2/promise");
 
-const pool = mysql.createPool({
-  host: "albadb.cpew3pq0biup.ap-northeast-2.rds.amazonaws.com",
-  user: "admin",
-  password: "dnjstnddlek",
-  database: "gig_time",
-  connectionLimit: 10
-});
+const pool = require('./function');
+
 
 /* owners 테이블 체크 */
 checkRouter.post('/member', async (req, res, next) => {

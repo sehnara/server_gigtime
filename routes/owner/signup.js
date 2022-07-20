@@ -10,14 +10,8 @@ const options = {
 };
 const geocoder = nodeGeocoder(options);
 
-const pool = mysql.createPool({
-  host: "albadb.cpew3pq0biup.ap-northeast-2.rds.amazonaws.com",
-  user: "admin",
-  password: "dnjstnddlek",
-  database: "gig_time",
-  connectionLimit: 1000,
-  multipleStatements : true
-});
+const pool = require('../function');
+
 
 const multi_con = mysql
 

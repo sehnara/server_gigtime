@@ -2,13 +2,8 @@ const { Router } = require("express");
 const employmentRouter = Router();
 const mysql = require("mysql2/promise");
 
-const pool = mysql.createPool({
-  host: "albadb.cpew3pq0biup.ap-northeast-2.rds.amazonaws.com",
-  user: "admin",
-  password: "dnjstnddlek",
-  database: "gig_time",
-  connectionLimit: 1000,
-});
+const pool = require('../../function');
+
 
 /* 사장님 최저시급 설정 페이지의 모집공고 작성 버튼 || 사장님 홈 페이지의 + 버튼 */
 /*

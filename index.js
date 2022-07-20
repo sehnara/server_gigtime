@@ -31,13 +31,8 @@ const options = {
 };
 const geocoder = nodeGeocoder(options);
 
-const pool = mysql.createPool({
-  host: "localhost",
-  user: "root",
-  password: "Rhd93!@#$~",
-  database: "gig_time",
-  connectionLimit: 10
-});
+const pool = require('./routes/function');
+
 
 // const con = mysql.createConnection({
 //   host: "localhost",

@@ -11,14 +11,8 @@ const options = {
 };
 const geocoder = nodeGeocoder(options);
 
+const pool = require('../function');
 
-const pool = mysql.createPool({
-    host: "albadb.cpew3pq0biup.ap-northeast-2.rds.amazonaws.com",
-    user: "admin",
-    password: "dnjstnddlek",
-    database: "gig_time",
-    connectionLimit: 10
-});
 
 
 /* 알바 예약 페이지 */

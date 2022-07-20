@@ -7,13 +7,8 @@ const myWorkerRouter = require("./mypage/myWorker");
 const interviewRouter = require("./mypage/interview");
 const employmentRouter = require("./mypage/employment");
 
-const pool = mysql.createPool({
-  host: "albadb.cpew3pq0biup.ap-northeast-2.rds.amazonaws.com",
-  user: "admin",
-  password: "dnjstnddlek",
-  database: "gig_time",
-  connectionLimit: 100,
-});
+const pool = require('../function');
+
 
 ownerMypageRouter.post("/", async (req, res) => {
   const con = await pool.getConnection(async (conn) => conn);

@@ -20,6 +20,8 @@ const pool = require('../function');
   }
 */
 suggestionRouter.post('/', async (req, res) => {
+
+
     const con = await pool.getConnection(async conn => conn);
     /* 
       hourly_orders 테이블고 orders 테이블을 JOIN 한 후, 
@@ -56,8 +58,8 @@ async function suggestion(worker_id, hourly_orders, start_times)
         
     /* 우선, range 이내의 hourly_order를 가져오자. */
     let hourly_orders_sliced = getInnerRange(latitude, longitude, range, hourly_orders);
-    // console.log('총 개수: ' + hourly_orders_sliced.length);
-    // console.log(hourly_orders_sliced);
+    console.log('총 개수: ' + hourly_orders_sliced.length);
+    console.log(hourly_orders_sliced);
 
     /* 이제 들어온 시간 별로 나눠야 한다. */
     let hourly_orders_divided_by_start_time = {};
@@ -84,17 +86,17 @@ async function suggestion(worker_id, hourly_orders, start_times)
     
     /* 이제 각 시간별로 min_price 순으로 정렬하자, 앞에 올수록 가격이 높아지도록 */
     // 참고로, hourly_orders_sliced 이 안에 다 있다.
-    for (let i = 0; i < times_count; i++) {
-        let tmp = new Date(start_times[i]);
-        hourly_orders_divided_by_start_time[tmp].sort(function(a, b) {
-        var price_A = a.price;
-        var price_B = b.price;
+    // for (let i = 0; i < times_count; i++) {
+    //     let tmp = new Date(start_times[i]);
+    //     hourly_orders_divided_by_start_time[tmp].sort(function(a, b) {
+    //     var price_A = a.price;
+    //     var price_B = b.price;
 
-        if (price_A < price_B) return 1;
-        if (price_A > price_B) return -1;
-        return 0;
-        })
-    }
+    //     if (price_A < price_B) return 1;
+    //     if (price_A > price_B) return -1;
+    //     return 0;
+    //     })
+    // }
 
     /* 재귀 방식 - dp 코드 추가 전이라 안돌아감 */
     // let max = recur(0, start_times, latitude, longitude, hourly_orders_divided_by_start_time, hourly_orders_sliced, 0);
@@ -134,6 +136,9 @@ async function suggestion(worker_id, hourly_orders, start_times)
     console.log()
     console.log();
     console.log('------------- 추천 시작 -------------')
+
+    let answer_save_array = new Array(); // 혜원
+
     while (queue.length > 0) 
     {
         let now = queue.shift(); // popleft
@@ -148,15 +153,16 @@ async function suggestion(worker_id, hourly_orders, start_times)
         /* 탈출 조건 */
         if (depth === times_count)
         {
-        if (answer < revenue) {
-            let before = answer;
-            answer = revenue;
-            answer_move = total_move;
-            answer_visit = Object.assign(Array(), visit);
-            if (before > 0)
-            console.log('   ' + answer + '원     -->     ' + (answer-before) + '원 증가!');
-            else
-            console.log('   ' + answer + '원');
+        if (answer < revenue) { // 0
+          let before = answer;
+          answer = revenue;
+          answer_move = total_move;
+          answer_visit = Object.assign(Array(), visit);
+          if (before > 0)
+          console.log('   ' + answer + '원     -->     ' + (answer-before) + '원 증가!');
+          else
+          console.log('   ' + answer + '원');
+          answer_save_array.push(answer)
         }
         continue;
         }
@@ -210,8 +216,8 @@ async function suggestion(worker_id, hourly_orders, start_times)
   
     for (let i = 0; i < answer_visit.length; i++)
     {
-        let idx = id_idx[answer_visit[i]];
-        console.log('   ' + start_times[i] + ' -- ' + hourly_orders_sliced[idx]['name']);
+        let idx = id_idx[answer_visit[i]]; // { id: idx }  idx를 가지고 name을 찾을 수 있다 아래와 같이
+        console.log('   ' + start_times[i] + ' -- ' + hourly_orders_sliced[idx]['name'] + ' -- ' + hourly_orders_sliced[idx]['hourlyorders_id']);
     }
 }
 

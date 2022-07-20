@@ -209,8 +209,8 @@ mypageRouter.post('/interview', async (req, res) => {
       WHERE store_job_lists.FK_store_job_lists_stores = ${store_id};`;
       const [result_type] = await con.query(type_sql);
   
-      date = result[i]['interview_date'].toISOString();
-      interview_date = date.split('T')[0];
+      date = new Date(result[i]['interview_date']);
+      interview_date = masageDateToYearMonthDay(date)
       interview_time = result[i]['time'];
       reject_flag = result[i]['reject_flag'];
       result_flag = result[i]['result_flag'];
@@ -245,6 +245,7 @@ mypageRouter.post('/interview', async (req, res) => {
         }
         // console.log(response);
     con.release();
+    console.log(response)
     res.send(response);
 });
   

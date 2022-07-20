@@ -73,14 +73,19 @@ applyRouter.post('/load_interview', async (req, res) => {
             interview[date] = [time];
         }
     }
+
+    let yet = today.getHours();
+    // console.log('yet',yet);
+    times[day].splice(0, hours[yet]+1);
+    // console.log('yet',times);
   
-    for (day; day <= calendar[month]; day += 1) {
+    for (day; day <= calendar[month]; day++) {
         month_str = String(month);
         day_str = String(day);
         month_str = month_str.padStart(2, '0');
         day_str = day_str.padStart(2, '0');
         new_date = `${year}-${month_str}-${day_str}`;
-  
+
         if (interview[new_date]) {
             for (hour of interview[new_date]) {
                 times[day].splice(hours[hour], 1);
@@ -88,6 +93,11 @@ applyRouter.post('/load_interview', async (req, res) => {
         }
         result.push({ 'date': new_date, 'time': times[day] });
     }
+    console.log(result)
+    if (result[0]['time'].length === 0) {
+        result.shift()
+    }
+
     // console.log(">>>>>>>>>>>>", result);
     // return result;
     con.release();
@@ -148,5 +158,3 @@ applyRouter.post('/submit', async (req, res) => {
 });
   
 module.exports = applyRouter;
-
-/************************ function *************************/

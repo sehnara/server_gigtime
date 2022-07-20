@@ -38,6 +38,10 @@ const pool = require('./function');
         let stores = getStore(worker_info[0]['latitude'], worker_info[0]['longitude'], worker_info[0]['range'], stores_info);  
         console.log(stores);
         con.release();
+        /* 결과를 랜덤하게 정렬 */
+        const shuffle = () => (Math.random() - 0.5);
+        stores.sort(shuffle)
+
         res.send(stores);
     }
     catch{

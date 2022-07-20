@@ -23,7 +23,7 @@ showRouter.post('/hourly_orders', async (req, res, next) => {
                         WHERE FK_orders_stores IN 
                         (SELECT store_id FROM stores WHERE store_id IN 
                             (SELECT FK_qualifications_stores FROM qualifications 
-                                WHERE FK_qualifications_workers=?)) AND status=0)`
+                                WHERE FK_qualifications_workers=?)) AND status=0) LIMIT 1000` // 개수제한.. 일단.
     try {
         const [valid_hourly_orders] = await con.query(sql, req.body['worker_id']);
         req.body['valid_hourly_orders'] = valid_hourly_orders;
@@ -114,7 +114,9 @@ function masage_data(latitude, longitude, range, data) {
     }
     // console.log(util.inspect(databox, { depth: 20 }));
     
-    /* 결과를 거리 순으로 정렬 */
+    /* 결과를 랜덤하게 정렬 */
+    const shuffle = () => (Math.random() - 0.5);
+    databox.sort(shuffle)
     // databox.sort(function(a, b) {
     //     var distance_A = a.distance;
     //     var distance_B = b.distance;

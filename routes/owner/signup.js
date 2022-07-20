@@ -12,9 +12,7 @@ const geocoder = nodeGeocoder(options);
 
 const pool = require('../function');
 
-
-const multi_con = mysql
-
+ 
 /* 사장님 사장님 최저시급 설정 페이지 */
 /* owner db에 사장님 회원정보 INSERT & store db에 가게정보 INSERT */
 /* 

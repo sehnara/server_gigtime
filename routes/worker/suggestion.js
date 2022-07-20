@@ -58,8 +58,8 @@ async function suggestion(worker_id, hourly_orders, start_times)
         
     /* 우선, range 이내의 hourly_order를 가져오자. */
     let hourly_orders_sliced = getInnerRange(latitude, longitude, range, hourly_orders);
-    // console.log('총 개수: ' + hourly_orders_sliced.length);
-    // console.log(hourly_orders_sliced);
+    console.log('총 개수: ' + hourly_orders_sliced.length);
+    console.log(hourly_orders_sliced);
 
     /* 이제 들어온 시간 별로 나눠야 한다. */
     let hourly_orders_divided_by_start_time = {};

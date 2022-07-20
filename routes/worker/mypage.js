@@ -119,6 +119,16 @@ mypageRouter.post('/work', async (req, res, next) => {
     //   send_data['key'][i] += ','+total_price.toString();
     // }
   
+    console.log(send_data)
+    send_data.sort(function(a, b) {
+      let date_a = new Date(a[0]);
+      let date_b = new Date(b[0]);
+
+      if (date_a < date_b) return -1;
+      if (date_a > date_b) return 1;
+      return 0;
+    })
+
     /* 결과 전송 */
     res.send(send_data);
   })

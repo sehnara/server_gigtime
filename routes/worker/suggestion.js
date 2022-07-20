@@ -25,6 +25,7 @@ suggestionRouter.post('/', async (req, res) => {
 
 
     const con = await pool.getConnection(async conn => conn);
+    console.log('suggestion:', req.body);
     /* 
       hourly_orders 테이블고 orders 테이블을 JOIN 한 후, 
       work_date와 worker_id, start_time 그리고 worker가 권한을 가지고 있는 store로 필터하여 SELECT
@@ -82,10 +83,12 @@ suggestionRouter.post('/', async (req, res) => {
     time = today.split('T')[1].split('.')[0]
     day = date + " " + time;
     tmp = '';
-    orders = req.body['orders'];
-    for (let i in orders){
-      tmp += `update hourly_orders SET FK_hourlyorders_workers=${req.body['worker_id']}, closing_time='${day}', status=1 WHERE hourlyorders_id=${orders[i]}; `
+    orders = req.body['hourly_order_id'];
+    console.log('orders:',orders);
+    for (i of orders){
+      tmp += `update hourly_orders SET FK_hourlyorders_workers=${req.body['worker_id']}, closing_time='${day}', status=1 WHERE hourlyorders_id=${i}; `
     }
+    console.log(tmp)
     const [result] = await con.query(tmp);
     con.release();
     res.send('success');    
@@ -120,7 +123,7 @@ async function suggestion(worker_id, hourly_orders, start_times)
       /* 우선, range 이내의 hourly_order를 가져오자. */
       let hourly_orders_sliced = getInnerRange(latitude, longitude, range, hourly_orders);
       // console.log('총 개수: ' + hourly_orders_sliced.length);
-      console.log(hourly_orders_sliced);
+      // console.log(hourly_orders_sliced);
   
       /* 이제 들어온 시간 별로 나눠야 한다. */
       let hourly_orders_divided_by_start_time = {};

@@ -2,10 +2,11 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const mysql = require("mysql2/promise");
-const path = require('path');
 const nodeGeocoder = require('node-geocoder');
 const app = express();
 const PORT = process.env.PORT || 4000;
+const path = require('path');
+const fs = require("fs");
 
 /* console.log depth에 필요 */
 let util = require('util');
@@ -26,17 +27,7 @@ const pool = mysql.createPool({
   connectionLimit: 10
 });
 
-// const con = mysql.createConnection({
-//   host: "localhost",
-//   user: "root",
-//   password: "Rhd93!@#$~",
-//   database: "gig_time",
-// });
 
-// con.connect(async function (err) {
-//   if(err) throw err;
-//   console.log('Connected!');
-// });
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
@@ -159,8 +150,9 @@ app.post('/check/member', async (req, res, next) => {
     con.release()
     res.send(send_array);
   }
-  else 
+  else {
     next();
+  }
 });
 
 /* workers 테이블 체크 */
@@ -203,6 +195,7 @@ app.post('/worker/signup', getPos, async (req, res, next) => {
   const con = await pool.getConnection(async conn => conn);
   const sql = "INSERT INTO workers SET ?";
   await con.query(sql, req.body);
+  con.release();
   next();
 })
 
@@ -211,6 +204,7 @@ app.use('/worker/signup', async (req, res) => {
   const con = await pool.getConnection(async conn => conn);
   const sql = "SELECT worker_id FROM workers WHERE email=?";
   const [result] = await con.query(sql, req.body['email']);
+  con.release();
   res.send(result[0]['worker_id'].toString())
 })
 
@@ -228,6 +222,7 @@ app.post('/worker/id', async (req, res) => {
   const sql = "SELECT worker_id FROM workers WHERE email=?";
 
   const [result] = await con.query(sql, req.body['email'])
+  con.release();
   try {
     res.send(result[0]['worker_id'].toString());
   } catch {
@@ -249,7 +244,6 @@ app.post('/worker/location/update', getPos, async (req, res, next) => {
       console.log('end of post');
       con.release();
       next();
-      // res.send('success');
   }
   catch{
     con.release();
@@ -328,8 +322,10 @@ app.post('/worker/range/update', async (req, res) => {
   const sql = "UPDATE workers SET range=? WHERE worker_id=?";
   try {
     await con.query(sql, req.body);
+    con.release();
     res.send('success');
   } catch {
+    con.release();
     res.send('error');
   }
 })
@@ -340,8 +336,10 @@ app.post('/worker/location', async (req, res) => {
   const sql = "SELECT `location` FROM workers WHERE email=?";
   try {
     const [result] = await con.query(sql, req.body['email']);
+    con.release();
     res.send(result[0]['location']); 
   } catch {
+    con.release();
     res.send('error');
   }
 });
@@ -350,10 +348,13 @@ app.post('/worker/location', async (req, res) => {
 app.post('/worker/range', async (req, res) => {
   const con = await pool.getConnection(async conn => conn);
   const sql = "SELECT `range` FROM workers WHERE email=?";
-  const [result] = await con.query(sql, req.body['email'])
+  
   try {
+    const [result] = await con.query(sql, req.body['email'])
+    con.release();
     res.send(result[0]['range'].toString()); // string 형태로만 통신 가능
   } catch {
+    con.release();
     res.send('error');
   }
 });
@@ -374,8 +375,10 @@ app.post('/worker/reservation/list', async (req, res, next) => {
   try {
     const [result] = await con.query(sql, req.body['type'])
     req.body['job_id'] = result[0]['job_id'];
+    con.release();
     next();
   } catch {
+    con.release();
     res.send('error');
   }
 })
@@ -388,8 +391,10 @@ app.use('/worker/reservation/list', async (req, res) => {
   try{
     const [result] = await con.query(sql, [req.body['order_id'],req.body['work_date'],req.body['job_id']])
     console.log(result);
+    con.release();
     res.send(result)
   } catch {
+    con.release();
     res.send('error');
   }
 })
@@ -470,6 +475,7 @@ app.post('/worker/reservation/save', async (req, res) => {
     /* check! 쿼리를 한 번만 실행해서 해당 column 모두 UPDATE 하는 방법은? */
     await con.query(sql, [req.body['worker_id'], timestamp, req.body['hourlyorder_id'][i]]); 
   }
+  con.release();
   check_all_hourlyorders_true(req.body['hourlyorder_id'][0]);
   res.send('success');
 })
@@ -480,7 +486,6 @@ app.post('/worker/reservation/save', async (req, res) => {
     'worker_id': 1
   } */
 app.post('/worker/show/hourly_orders', async (req, res, next) => {
-  console.log(req.body);
   const con = await pool.getConnection(async conn => conn);
   /* 1. 해당 order에 해당하는 hourly_order 가져오기. */
   // FK_hourlyorders_workers === NULL인 것만.
@@ -497,8 +502,10 @@ app.post('/worker/show/hourly_orders', async (req, res, next) => {
   try {
     const [valid_hourly_orders] = await con.query(sql, req.body['worker_id']);
     req.body['valid_hourly_orders'] = valid_hourly_orders;
+    con.release();
     next();
   } catch {
+    con.release();
     res.send('error');
   }  
 });
@@ -508,7 +515,7 @@ app.use('/worker/show/hourly_orders', async (req, res) => {
   const con = await pool.getConnection(async conn => conn);
   const sql = `SELECT latitude, longitude FROM workers WHERE worker_id=?`;
   const [result] = await con.query(sql, req.body['worker_id']);
-  console.log('서버 들어옴');
+  con.release();
   res.send(masage_data(result[0]['latitude'], result[0]['longitude'], req.body['valid_hourly_orders']));
 });
 
@@ -543,6 +550,7 @@ app.post('/worker/suggestion', async (req, res) => {
                     WHERE FK_qualifications_workers=?))`;
   const [result] = await con.query(sql, [req.body['work_date'], req.body['start_times'], req.body['worker_id']]);
     // console.log('모든 개수: ' + result.length);
+  con.release();
   suggestion(req.body['worker_id'], result, req.body['start_times']);
 })
 
@@ -557,6 +565,7 @@ async function suggestion(worker_id, hourly_orders, start_times)
   let latitude = result[0]['latitude'];
   let longitude = result[0]['longitude'];
   let times_count = start_times.length;
+  con.release();
     
   /* 우선, range 이내의 hourly_order를 가져오자. */
   let hourly_orders_sliced = getInnerRange(latitude, longitude, range, hourly_orders);
@@ -753,23 +762,25 @@ app.post('/store/list', async (req, res, next) => {
   let msg = '';
   const worker_id = req.body['worker_id'];
   try{
-      /* 해당 worker의 위도, 경도, 거리 설정 정보 가져오기 */
-      msg = 'select range';
-      const sql ='SELECT `range` FROM workers WHERE worker_id=?';
-      const [result] = await con.query(sql, worker_id);
-      // req.body['worker_range'] = result[0]['range'];
-      console.log('result:',result);
-      
-      msg = 'select unqualified';
-      const sql_unqualified =`select a.*, b.name, b.minimum_wage, b.distance from ${worker_id}_store_unqualified a join ${worker_id}_store_list b on a.store_id = b.list_id 
-      where b.distance < ${result[0]['range']} ;`;
-      const [result_unqualified] = await con.query(sql_unqualified);
-      delete result_unqualified['list_id'];
-      
-      res.send(result_unqualified);
+    /* 해당 worker의 위도, 경도, 거리 설정 정보 가져오기 */
+    msg = 'select range';
+    const sql ='SELECT `range` FROM workers WHERE worker_id=?';
+    const [result] = await con.query(sql, worker_id);
+    // req.body['worker_range'] = result[0]['range'];
+    console.log('result:',result);
+    
+    msg = 'select unqualified';
+    const sql_unqualified =`select a.*, b.name, b.minimum_wage, b.distance from ${worker_id}_store_unqualified a join ${worker_id}_store_list b on a.store_id = b.list_id 
+    where b.distance < ${result[0]['range']} ;`;
+    const [result_unqualified] = await con.query(sql_unqualified);
+    delete result_unqualified['list_id'];
+    
+    con.release();
+    res.send(result_unqualified);
   }
   catch{
-      res.send(`error - ${msg}`);
+    con.release();
+    res.send(`error - ${msg}`);
   }
 });
 
@@ -784,8 +795,10 @@ app.post('/store/list', async (req, res, next) => {
     const sql = "UPDATE stores SET address=?, latitude=?, longitude=? WHERE FK_stores_owners=?";
     try {
       await con.query(sql, [req.body['location'], req.body['latitude'], req.body['longitude'], req.body['FK_stores_owners']]);
+      con.release();
       res.send('success');
     } catch {
+      con.release();
       res.send('error');
     }
 })
@@ -838,9 +851,11 @@ app.post('/owner/signup', getPos, async (req, res) => {
     await con.query(sql3, tmp)
 
     console.log('owner signup success!');
+    con.release();
     res.send('success');
   }
   catch {
+    con.release();
     console.log('error');
     res.send('error');
   }
@@ -876,9 +891,11 @@ app.use('/owner/mypage/employment/button', async (req, res, next) => {
     req.body['name'] = result[0]['name'];
     req.body['address'] = result[0]['address'];
     req.body['store_id'] = result[0]['store_id'];
+    con.release();
     next();
   }
   catch {
+    con.release();
     res.send('error');
   }
 })
@@ -917,9 +934,12 @@ async function getJobIdByStoreId(req, res, next) {
     catch (exception) {
       console.log(exception);
     }
+
+    con.release();
     next();
   } 
   catch {
+    con.release();
     res.send('error: getJobIdByStoreId');
   }
 }
@@ -939,9 +959,11 @@ async function getTypeByJobId(job_ids) {
     for (let i = 0; i < result.length; i++) {
       job_types.push(result[i]['type']);
     }
+    con.release();
     return job_types;
   }
   catch {
+    con.release();
     console.log('error');
   }
 }
@@ -1133,11 +1155,14 @@ app.post('/worker/mypage/work', async (req, res, next) => {
                 INNER JOIN jobs D ON B.FK_orders_jobs = D.job_id
                 WHERE A.FK_hourlyorders_workers='${req.body['worker_id']}'`
   // const sql = `SELECT * FROM hourly_orders WHERE status=0`
-  const [result] = await con.query(sql);
+  
   try {
+    const [result] = await con.query(sql);
     req.body['hourly_orders'] = result;
+    con.release();
     next();
   } catch {
+    con.release();
     res.send('error');
   }
 })
@@ -1484,7 +1509,7 @@ function masage_data(latitude, longitude, data) {
           ]['start_time_and_id'].push([d['start_time'], d['hourlyorders_id']]);
       }
   }
-  console.log(util.inspect(databox, { depth: 20 }));
+  // console.log(util.inspect(databox, { depth: 20 }));
   return databox;
 }
 
@@ -2125,6 +2150,15 @@ app.post('/mypage/interview', async (req, res) => {
       // console.log(response);
   res.send(response);
 });
+
+/* DB에 store name, address 삽입 */
+async function insertDummyData() {
+
+}
+
+
+
+
 
 app.listen(PORT, () => {
   console.log(`Server On : http://localhost:${PORT}/`);

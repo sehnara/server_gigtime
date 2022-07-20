@@ -21,7 +21,7 @@ interviewRouter.post('/', async (req, res) => {
     from interviews a 
     join workers b on a.FK_interviews_workers = b.worker_id 
     join interview_times c on a.FK_interviews_interview_times = c.interview_time_id
-    where a.FK_interviews_stores = ${result_store[0]['store_id']} and a.state > 0
+    where a.FK_interviews_stores = ${result_store[0]['store_id']} and a.reject_flag=0 and a.state > 0
     order by state, interview_date, time;`;
     const [result] = await con.query(sql)
     n = result.length;

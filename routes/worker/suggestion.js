@@ -293,7 +293,7 @@ async function suggestion(worker_id, hourly_orders, start_times)
   
       respon = {
         "date" : date,
-        "preice" : answer,
+        "price" : answer,
         "move" : answer_move,
         "p_history" : answer_save_array,
         "visit" : cards

@@ -13,7 +13,7 @@ interviewRouter.post('/exit', async (req, res) => {
     const interview_id = req.body['interview_id'];
     console.log('/owner/interview/exit', interview_id);
     try {
-        const sql = `update interviews set state = 2 where interview_id = ${interview_id}`;
+        const sql = `update interviews set state = 4 where interview_id = ${interview_id}`;
         const [result] = await con.query(sql);
         con.release();
         res.send({ state: 'success' });

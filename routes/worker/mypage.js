@@ -198,11 +198,12 @@ mypageRouter.post('/interview', async (req, res) => {
     worker_id = req.body['worker_id'];
     cards = [];
     // console.log(worker_id);
-    const sql = `SELECT a.interview_id, a.FK_interviews_stores, a.interview_date, a.FK_interviews_interview_times, 
-    a.reject_flag, a.result_flag, a.link, a.state, b.name, b.address, c.time
-    From interviews as a, stores as b, interview_times as c 
-    where a.FK_interviews_stores = b.store_id and a.FK_interviews_interview_times = c.interview_time_id 
-    and FK_interviews_workers = ${worker_id} order by state, interview_date, time;`;
+    const sql = `SELECT SQL_NO_CACHE a.interview_id, a.FK_interviews_stores, a.interview_date, a.FK_interviews_interview_times, 
+                      a.reject_flag, a.result_flag, a.link, a.state, b.name, b.address, c.time
+                      From interviews as a
+                      inner join stores as b on a.FK_interviews_stores = b.store_id
+                      inner join interview_times as c on a.FK_interviews_interview_times = c.interview_time_id 
+                      where FK_interviews_workers = ${worker_id} and a.reject_flag=0 order by state, interview_date, time;`;
     const [result] = await con.query(sql);
     n = result.length;
     pre_state = 0;

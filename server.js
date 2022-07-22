@@ -919,10 +919,10 @@ app.post("/owner/mypage/employment/button", async (req, res, next) => {
   } catch {
     res.send("error");
   }
-  catch {
-    con.release();
-    res.send('error');
-  }
+  // catch {
+  //   con.release();
+  //   res.send('error');
+  // }
 })
 
 /* 3. store_job_lists 테이블에서 store_id로 FK_store_job_lists_jobs 모두 가져오기 */

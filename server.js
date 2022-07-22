@@ -20,14 +20,13 @@ const options = {
 const geocoder = nodeGeocoder(options);
 
 const pool = mysql.createPool({
-  host: "albadb.cpew3pq0biup.ap-northeast-2.rds.amazonaws.com",
-  user: "admin",
-  password: "dnjstnddlek",
-  database: "gig_time",
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS,
+  database: process.env.DB_NAME,
   connectionLimit: 1000,
+  multipleStatements: true,
 });
-
-
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());

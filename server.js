@@ -247,11 +247,12 @@ app.post('/worker/location/update', getPos, async (req, res, next) => {
       con.release();
       next();
   }
-  catch{
-    con.release();
-    next();
-    // res.send('success');
-  } catch {
+  // catch{
+  //   con.release();
+  //   next();
+  //   // res.send('success');
+  // } 
+  catch {
     con.release();
     res.send("error - update workers");
   }

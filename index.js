@@ -58,11 +58,11 @@ io.on('connection', (socket) => {
         socketToRoom[socket.id] = data.room;
 
         socket.join(data.room);
-        // console.log(`[${socketToRoom[socket.id]}]: ${socket.id} enter`);
+        console.log(`[${socketToRoom[socket.id]}]: ${socket.id} enter`);
 
         const usersInThisRoom = users[data.room].filter((user) => user.id !== socket.id);
 
-        // console.log(usersInThisRoom);
+        console.log(usersInThisRoom);
 
         io.sockets.to(socket.id).emit('all_users', usersInThisRoom);
     });
@@ -126,5 +126,5 @@ app.use('/reserve', reserveRouter);
 app.use('/apply', applyRouter);
 
 server.listen(PORT, () => {
-    console.log(`socket server running on ${SOCK_PORT}`);
+    console.log(`server running on ${PORT}`);
 });

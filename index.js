@@ -14,6 +14,7 @@ const storeerRouter = require('./routes/store');
 const ownerRouter = require('./routes/owner');
 const reserveRouter = require('./routes/reserve');
 const applyRouter = require('./routes/apply');
+const chattingRouter = require('./routes/chatting')
 
 /****************************************/
 
@@ -105,6 +106,14 @@ io.on('connection', (socket) => {
 
         socket.broadcast.emit(`${roomID}`, '상대방이 나갔습니다.');
     });
+
+    socket.on("join_chat_room", (data) => {
+        socket.join(data);
+      });
+    
+      socket.on("send_message", (data) => {
+        socket.to(data.room_id).emit("receive_message", data);
+      });
 });
 
 app.post('/interview', (req, res, next) => {
@@ -124,7 +133,8 @@ app.use('/store', storeerRouter);
 app.use('/owner', ownerRouter);
 app.use('/reserve', reserveRouter);
 app.use('/apply', applyRouter);
+app.use('/chatting', chattingRouter);
 
 server.listen(PORT, () => {
-    console.log(`socket server running on ${SOCK_PORT}`);
+    console.log(`socket server running on ${PORT}`);
 });

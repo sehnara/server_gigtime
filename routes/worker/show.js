@@ -49,8 +49,93 @@ showRouter.use('/hourly_orders', async (req, res) => {
     }
 });
 
-
 module.exports = showRouter;
+
+/* { 'worker_id': 1, 'cursor': null } */
+/*
+    [ 정상적 형태 ]
+    "name": "보리누리",
+    "distance": 3991000,
+    "types": ["카운터", "청소"],
+    "orders": [
+        { "order_id":5, "type":"카운터", "price":10000, "work_date": "2022-08-20" },
+        { ... }
+    ]
+
+    [ 비정상 형태 ]
+    [
+        {
+            "name": "빽다방",
+            "minimum_wage": 10000,
+            "distance": 3991000,
+            "key": [
+                [ "2022-08-20","청소",1 ],
+                [ "2022-08-21","카운터",5 ],
+                [ ... ]
+            ]
+            "work_date_and_type_and_id": {
+                [ "2022-08-20","청소",1 ]: {
+                    "min_price": 10000,
+                    "start_time_and_id": [
+                        [ "2022-08-20 18:00:00",1 ],
+                        [ "2022-08-20 19:00:00",2 ],
+                        [ ... ]
+                    ]
+                }
+            }
+        }
+    ]
+*/
+/* 1. worker의 range를 가져오자 */
+showRouter.post('/hourly_orders2', async (req, res, next) => {
+    const con = await pool.getConnection(async conn => conn);
+    const sql = "SELECT `range`, latitude, longitude FROM workers WHERE worker_id=? LIMIT 1"
+
+    const [worker_info] = await con.query(sql, [req.body['worker_id']]);
+    con.release()
+    req.body['range'] = worker_info[0]['range'];
+    req.body['latitude'] = Number(worker_info[0]['latitude']);
+    req.body['longitude'] = Number(worker_info[0]['longitude']);
+
+    next();
+})
+
+/* 2. worker가 설정한 거리 안에 있는 store 정보를 모두 가져오자 */
+showRouter.use('/hourly_orders2', async (req, res, next) => {
+    const con = await pool.getConnection(async conn => conn);
+    const sql = `SELECT store_id, FK_stores_owners AS owner_id, name, address, latitude, longitude FROM stores`
+    const [result] = await con.query(sql);
+    con.release()
+    
+    let store_list = new Array();
+    let store_ids = new Array();
+    let worker_range = req.body['range'];
+    let worker_latitude = req.body['latitude'];
+    let worker_longitude = req.body['longitude'];
+
+    for (let i = 0; i < result.length; i++) {
+        let tmp = getDistance(worker_latitude,worker_longitude,result[i]['latitude'],result[i]['longitude']);
+        
+        if (worker_range > tmp) {
+            result[i]['distance'] = tmp;
+            store_list.push(result[i]);
+            store_ids.push(result[i]['store_id'])
+        }
+    }
+    
+    req.body['store_list'] = store_list;
+    req.body['store_ids'] = store_ids;
+    console.log(req.body)
+    next();
+})
+
+/* 3. order를 가져올건데, 가져온 store에 해당하는 것만! */
+showRouter.use('/hourly_orders2', async (req, res, next) => {
+    const con = await pool.getConnection(async conn => conn);
+    let cursor = Number(req.body['cursor']) || 0; 
+    
+    const sql = `SELECT order_id, FK_orders_jobs AS job_id, description, min_price FROM orders WHERE FK_orders_stores IN (?) AND status=0 AND order_id>${cursor}`
+})
 
 /************************ function *************************/
 /* 주변일감 페이지 */

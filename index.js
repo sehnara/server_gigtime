@@ -14,6 +14,7 @@ const storeerRouter = require('./routes/store');
 const ownerRouter = require('./routes/owner');
 const reserveRouter = require('./routes/reserve');
 const applyRouter = require('./routes/apply');
+const permissionRouter = require('./routes/permission');
 
 
 
@@ -146,6 +147,7 @@ app.use('/store', storeerRouter);
 app.use('/owner', ownerRouter);
 app.use('/reserve', reserveRouter);
 app.use('/apply', applyRouter);
+app.use('/permission', permissionRouter);
 
 
 app.listen(PORT, () => {

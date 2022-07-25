@@ -1,5 +1,4 @@
 const { Router } = require('express');
-const mysql = require("mysql2/promise");
 
 const ownerRouter = Router();
 
@@ -7,6 +6,7 @@ const signupRouter = require('./owner/signup');
 const interviewRouter = require('./owner/interview');
 const employmentRouter = require('./owner/employment');
 const ownerMypageRouter = require('./owner/mypage');
+const angelRouter = require('./owner/angel');
 
 const pool = require('./function');
 
@@ -15,6 +15,7 @@ ownerRouter.use('/signup', signupRouter);
 ownerRouter.use('/interview', interviewRouter);
 ownerRouter.use('/employment', employmentRouter);
 ownerRouter.use('/mypage', ownerMypageRouter);
+ownerRouter.use('/angel', angelRouter);
 
 module.exports = ownerRouter;
 

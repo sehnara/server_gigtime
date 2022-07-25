@@ -73,6 +73,36 @@ messageRouter.use('/save', async (req, res) => {
     { "room_id": 6, "cursor": "null" } cursor는 chatting_id. 여기서부터 일정 개수 읽어오는 방식으로 구현해야 한다. null이면 처음부터
 */
 /*  */
+messageRouter.get('/loading', async (req, res) => {
+    console.log(req.query.room_id);
+    console.log('ininin')
+
+    const con = await pool.getConnection(async conn => conn);
+    const sql = `
+    SELECT A.chatting_id, A.FK_chattings_rooms AS room_id, A.send_user_id, A.send_user_type, A.message, A.createdAt, B.name AS owner_name, C.name AS worker_name
+    FROM chattings A
+    INNER JOIN owners B ON A.send_user_id = B.owner_id
+    INNER JOIN workers C ON A.send_user_id = C.worker_id
+    WHERE chatting_id<? AND FK_chattings_rooms=? ORDER BY chatting_id DESC LIMIT 10`
+    
+    let cursor = Number(req.query.cursor) || 9999999999;
+    const [result] = await con.query(sql, [cursor, req.query.room_id]);
+
+    for (let i = 0; i < result.length; i++) {
+        result[i]['createdAt'] = masageDateToYearMonthDayHourMinSec(result[i]['createdAt']).slice(0,-3)
+        if (result[i]['send_user_type'] === 'owner') {
+            result[i]['caller_name'] = result[i]['owner_name']
+        } else {
+            result[i]['caller_name'] = result[i]['worker_name']
+        }
+        delete result[i]['owner_name']
+        delete result[i]['worker_name']
+    }
+    
+    console.log(result)
+    res.send(result);
+})
+
 messageRouter.get('/loading/:room_id/:cursor', async (req, res) => {
     const con = await pool.getConnection(async conn => conn);
     const sql = `

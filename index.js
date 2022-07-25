@@ -7,6 +7,7 @@ const nodeGeocoder = require('node-geocoder');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+
 /****************************************/
 const checkRouter = require('./routes/check');
 const workerRouter = require('./routes/worker');
@@ -38,6 +39,7 @@ app.use(bodyParser.json());
 let http = require('http');
 let server = http.createServer(app);
 let socketio = require('socket.io');
+const { default: job } = require('./timer');
 let io = socketio.listen(server);
 let socketToRoom = {};
 let users = {};
@@ -160,6 +162,9 @@ app.use('/owner', ownerRouter);
 app.use('/reserve', reserveRouter);
 app.use('/apply', applyRouter);
 app.use('/chatting', chattingRouter);
+
+/* 일정 주기로 실행되며 DB 업데이트 실행 */
+let timers = require('./timer')
 
 server.listen(PORT, () => {
     console.log(`socket server running on ${PORT}`);

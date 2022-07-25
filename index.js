@@ -108,12 +108,38 @@ io.on('connection', (socket) => {
     });
 
     socket.on("join_chat_room", (data) => {
+        console.log(data)
         socket.join(data);
+        console.log("join_ok");
       });
     
-      socket.on("send_message", (data) => {
+    socket.on("send_message", async (data) => {
+        console.log('11111', data);
         socket.to(data.room_id).emit("receive_message", data);
-      });
+        delete data['caller_name'];
+        const con = await pool.getConnection(async conn => conn);
+        const sql = `INSERT INTO chattings SET ?`;
+        let date = new Date();
+        let sec = date.getSeconds().toString();
+        if (sec.length === 1)
+            sec = '0'+sec
+        
+        data['createdAt'] = data['createdAt']+':'+sec;
+        data['updatedAt'] = data['createdAt']
+
+        data['FK_chattings_rooms'] = data['room_id']
+        delete data['room_id']
+        delete data['time']
+
+        await con.query(sql, data)
+
+    /* 2. room 테이블의 last_chat, updatedAt 업데이트 */
+        const sql2 = `UPDATE rooms SET last_chat=?, updatedAt=? WHERE room_id=?`;
+        await con.query(sql2, [data['message'], data['createdAt'], data['FK_chattings_rooms']]);
+        con.release();
+
+        console.log("ok")
+    });
 });
 
 app.post('/interview', (req, res, next) => {

@@ -65,7 +65,7 @@ roomRouter.post('/list', async (req, res, next) => {
     else flag = -1
 
     const [result] = await con.query(sql, [flag]);
-    console.log(result)
+    con.release();
 
     for (let i = 0; i < result.length; i++) {
         let identifier = result[i]['identifier'].split('-');
@@ -74,28 +74,34 @@ roomRouter.post('/list', async (req, res, next) => {
         if (req.body['type'] === 'worker') { // 현재 사용자가 worker라면
             result[i]['receiver_name'] = result[i]['owner_name']
             result[i]['receiver_id'] = owner_id
+            result[i]['caller_name'] = result[i]['worker_name']
         }
         else {
             result[i]['receiver_name'] = result[i]['worker_name']
             result[i]['receiver_id'] = worker_id
+            result[i]['caller_name'] = result[i]['owner_name']
         }
+        
+        let timeStamp = masageDateToYearMonthDayHourMinSec(result[i]["updatedAt"]);
+        result[i]["time"] = timeStamp.slice(0, -3);
+        console.log(result[i]["time"]);
+        delete result[i]["identifier"];
+        delete result[i]["updatedAt"];
+        delete result[i]["owner_name"];
+        delete result[i]["worker_name"];
 
-        let timeStamp = masageDateToYearMonthDayHourMinSec(result[i]['updatedAt']).split(' ')
-        let date = timeStamp[0]
-        let time = timeStamp[1].split(':')
-        result[i]['date'] = date
-        result[i]['time'] = time[0]+'시 '+time[1]+'분' 
+        // let timeStamp = masageDateToYearMonthDayHourMinSec(result[i]['updatedAt']).split(' ')
+        // let date = timeStamp[0]
+        // let time = timeStamp[1].split(':')
+        // result[i]['date'] = date
+        // result[i]['time'] = time[0]+'시 '+time[1]+'분' 
 
-        delete result[i]['identifier']
-        delete result[i]['updatedAt']
-        delete result[i]['owner_name']
-        delete result[i]['worker_name']
+        // delete result[i]['identifier']
+        // delete result[i]['updatedAt']
+        // delete result[i]['owner_name']
+        // delete result[i]['worker_name']
     }
-
-    // req.body['date'] = 
-    // req.body['time'] = 
-
-    con.release();
+    console.log(result)
     res.send(result)
 })
 

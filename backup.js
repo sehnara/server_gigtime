@@ -1,3 +1,5 @@
+
+
 /* 실행 시 특정 csv 파일 데이터를 owners, stores 테이블에 insert */
 async function set_owners_and_stores_db() {
     let filePath = path.join(__dirname, "./stores.csv")

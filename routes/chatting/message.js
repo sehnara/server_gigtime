@@ -37,6 +37,7 @@ module.exports = messageRouter;
 */
 /* 1. 우선 chatting 테이블에 INSERT */
 messageRouter.post('/save', async (req, res, next) => {
+    console.log('123', req.body)
     const con = await pool.getConnection(async conn => conn);
     const sql = `INSERT INTO chattings SET ?`;
     let date = new Date();
@@ -75,16 +76,26 @@ messageRouter.use('/save', async (req, res) => {
 messageRouter.get('/loading/:room_id/:cursor', async (req, res) => {
     const con = await pool.getConnection(async conn => conn);
     const sql = `
-    SELECT chatting_id, FK_chattings_rooms AS room_id, send_user_id, send_user_type, message, updatedAt
-    FROM chattings
-    WHERE chatting_id<? AND FK_chattings_rooms=? ORDER BY chatting_id DESC LIMIT 30`
+    SELECT A.chatting_id, A.FK_chattings_rooms AS room_id, A.send_user_id, A.send_user_type, A.message, A.updatedAt, B.name AS owner_name, C.name AS worker_name
+    FROM chattings A
+    INNER JOIN owners B ON A.send_user_id = B.owner_id
+    INNER JOIN workers C ON A.send_user_id = C.worker_id
+    WHERE chatting_id<? AND FK_chattings_rooms=? ORDER BY chatting_id DESC LIMIT 10`
     
     let cursor = Number(req.params.cursor) || 9999999999;
+    const [result] = await con.query(sql, [cursor, req.params.room_id]);
 
-    const [result] = await con.query(sql, [req.params.cursor, req.params.room_id])
-
-    for (let i = 0; i < result.length; i++)
+    for (let i = 0; i < result.length; i++) {
         result[i]['updatedAt'] = masageDateToYearMonthDayHourMinSec(result[i]['updatedAt'])
+        if (result[i]['send_user_type'] === 'owner') {
+            result[i]['caller_name'] = result[i]['owner_name']
+        } else {
+            result[i]['caller_name'] = result[i]['worker_name']
+        }
+        delete result[i]['owner_name']
+        delete result[i]['worker_name']
+    }
+    
     res.send(result);
 })
 

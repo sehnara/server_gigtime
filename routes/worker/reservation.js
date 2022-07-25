@@ -64,7 +64,13 @@ reservationRouter.use('/list', async (req, res) => {
     'worker_id': 2, 
     'hourlyorders_id': [5, 6, 7, 8, 9]
 } */
+
+/* 신청한 시간에 예약 가능한지 먼저 체크 */
 reservationRouter.post('/save', async (req, res) => {
+    
+})
+
+reservationRouter.use('/save', async (req, res) => {
     console.log(req.body)
     const con = await pool.getConnection(async conn => conn);
     const sql = "UPDATE hourly_orders SET FK_hourlyorders_workers=?, closing_time=? WHERE hourlyorders_id=?";

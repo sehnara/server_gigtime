@@ -22,7 +22,7 @@ showRouter.post('/hourly_orders', async (req, res, next) => {
                     INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id 
                     INNER JOIN stores C ON B.FK_orders_stores = C.store_id 
                     INNER JOIN jobs D ON B.FK_orders_jobs = D.job_id
-                    WHERE hourlyorders_id>${cursor} AND FK_hourlyorders_orders IN 
+                    WHERE hourlyorders_id>${cursor} AND A.status=0 AND FK_hourlyorders_orders IN 
                     (SELECT order_id FROM orders 
                         WHERE status=0 AND FK_orders_stores IN 
                         (SELECT store_id FROM stores WHERE store_id IN 
@@ -233,7 +233,7 @@ function masage_data(latitude, longitude, range, data) {
             ]['start_time_and_id'].push([d['start_time'], d['hourlyorders_id']]);
         }
     }
-    // console.log(util.inspect(databox, { depth: 20 }));
+    console.log(util.inspect(databox, { depth: 20 }));
     
     /* 결과를 랜덤하게 정렬 (하지 않겠음. 무한스크롤 구현과 충돌) */
     // const shuffle = () => (Math.random() - 0.5);

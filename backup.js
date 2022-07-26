@@ -1,3 +1,24 @@
+const express = require("express");
+const bodyParser = require("body-parser");
+const mysql = require("mysql2/promise");
+const app = express();
+const PORT = process.env.PORT || 4000;
+const path = require('path');
+const fs = require("fs");
+
+/* console.log depth에 필요 */
+let util = require("util");
+
+const pool = mysql.createPool({
+  host: '',
+  user: '',
+  password: '',
+  database: '',
+  connectionLimit: 0,
+  multipleStatements: true,
+});
+
+
 /* 실행 시 특정 csv 파일 데이터를 owners, stores 테이블에 insert */
 async function set_owners_and_stores_db() {
     let filePath = path.join(__dirname, "./stores.csv")

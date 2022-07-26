@@ -1,11 +1,12 @@
-const express = require("express");
-const cors = require("cors");
-const bodyParser = require("body-parser");
-const mysql = require("mysql2/promise");
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const mysql = require('mysql2/promise');
 const path = require('path');
 const nodeGeocoder = require('node-geocoder');
 const app = express();
 const PORT = process.env.PORT || 4000;
+
 
 /****************************************/
 const checkRouter = require('./routes/check');
@@ -22,6 +23,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "./build", "index.html"));
 });
 
+const chattingRouter = require('./routes/chatting')
 
 /****************************************/
 
@@ -31,25 +33,12 @@ let util = require('util');
 
 /* 구글 map api */
 const options = {
-  provider: 'google',
-  apiKey: 'AIzaSyAHZxHAkDSHoI-lJDCg5YfO7bLCFiRBpaU' // 요놈 넣어만 주면 될듯?
+    provider: 'google',
+    apiKey: 'AIzaSyAHZxHAkDSHoI-lJDCg5YfO7bLCFiRBpaU', // 요놈 넣어만 주면 될듯?
 };
 const geocoder = nodeGeocoder(options);
 
 const pool = require('./routes/function');
-
-
-// const con = mysql.createConnection({
-//   host: "localhost",
-//   user: "root",
-//   password: "Rhd93!@#$~",
-//   database: "gig_time",
-// });
-
-// con.connect(async function (err) {
-//   if(err) throw err;
-//   console.log('Connected!');
-// });
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
@@ -58,6 +47,7 @@ app.use(bodyParser.json());
 let http = require('http');
 let server = http.createServer(app);
 let socketio = require('socket.io');
+const { default: job } = require('./timer');
 let io = socketio.listen(server);
 let socketToRoom = {};
 let users = {};
@@ -126,6 +116,40 @@ io.on('connection', (socket) => {
 
         socket.broadcast.emit(`${roomID}`, '상대방이 나갔습니다.');
     });
+
+    socket.on("join_chat_room", (data) => {
+        console.log(data)
+        socket.join(data);
+        console.log("join_ok");
+      });
+    
+    socket.on("send_message", async (data) => {
+        console.log('11111', data);
+        socket.to(data.room_id).emit("receive_message", data);
+        delete data['caller_name'];
+        const con = await pool.getConnection(async conn => conn);
+        const sql = `INSERT INTO chattings SET ?`;
+        let date = new Date();
+        let sec = date.getSeconds().toString();
+        if (sec.length === 1)
+            sec = '0'+sec
+        
+        data['createdAt'] = data['createdAt']+':'+sec;
+        data['updatedAt'] = data['createdAt']
+
+        data['FK_chattings_rooms'] = data['room_id']
+        delete data['room_id']
+        delete data['time']
+
+        await con.query(sql, data)
+
+    /* 2. room 테이블의 last_chat, updatedAt 업데이트 */
+        const sql2 = `UPDATE rooms SET last_chat=?, updatedAt=? WHERE room_id=?`;
+        await con.query(sql2, [data['message'], data['createdAt'], data['FK_chattings_rooms']]);
+        con.release();
+
+        console.log("ok")
+    });
 });
 
 app.post('/interview', (req, res, next) => {
@@ -139,7 +163,6 @@ app.post('/interview', (req, res, next) => {
     return res.send({ enter: false });
 });
 
-
 app.use('/check', checkRouter);
 app.use('/worker', workerRouter);
 app.use('/store', storeerRouter);
@@ -147,6 +170,11 @@ app.use('/owner', ownerRouter);
 app.use('/reserve', reserveRouter);
 app.use('/apply', applyRouter);
 app.use('/permission', permissionRouter);
+
+app.use('/chatting', chattingRouter);
+
+/* 일정 주기로 실행되며 DB 업데이트 실행 */
+let timers = require('./timer')
 
 server.listen(PORT, () => {
     console.log(`socket server running on ${PORT}`);

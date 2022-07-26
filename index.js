@@ -16,7 +16,11 @@ const reserveRouter = require('./routes/reserve');
 const applyRouter = require('./routes/apply');
 const permissionRouter = require('./routes/permission');
 
+app.use(express.static(path.join(__dirname, "./build")));
 
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "./build", "index.html"));
+});
 
 
 /****************************************/
@@ -51,7 +55,6 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
 app.use(bodyParser.json());
 /****** webrtc - interview ******/
-const SOCK_PORT = process.env.PORT || 8080;
 let http = require('http');
 let server = http.createServer(app);
 let socketio = require('socket.io');
@@ -125,10 +128,6 @@ io.on('connection', (socket) => {
     });
 });
 
-server.listen(SOCK_PORT, () => {
-    console.log(`socket server running on ${SOCK_PORT}`);
-});
-
 app.post('/interview', (req, res, next) => {
     const interviewId = req.body['interviewId'];
     for (const roomName of Object.values(socketToRoom)) {
@@ -149,7 +148,6 @@ app.use('/reserve', reserveRouter);
 app.use('/apply', applyRouter);
 app.use('/permission', permissionRouter);
 
-
-app.listen(PORT, () => {
-    console.log(`Server On : http://localhost:${PORT}/`);
+server.listen(PORT, () => {
+    console.log(`socket server running on ${PORT}`);
 });

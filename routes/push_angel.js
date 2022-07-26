@@ -13,11 +13,12 @@ function push_angel(target_token, info){
     let message = {
         // "type": 'angel_call',
         "data": {
-            title: `알바천사 구함`,
+            title: `알바천사 콜`,
             // body: 'body string'
             body: JSON.stringify(info)
         },
-        "tokens": target_token
+        "tokens": target_token,
+        "link": "https://www.naver.com"
     }
     console.log(message);
 

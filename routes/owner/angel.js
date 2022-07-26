@@ -12,16 +12,20 @@ const push_noti = require('../push');
   } 
 */
 angelRouter.get('/', async (req, res) => { 
-  console.log(req.body)
   const con = await pool.getConnection(async conn => conn);
 
   try{
-    const owner_id = req.body['owner_id'];
+    const owner_id = req.query['owner_id'];
   
     /* 1. store 찾아서 job type 꺼내고 */
+    const sql = `SELECT store_id FROM stores WHERE FK_stores_owners=${owner_id}`;
+    const [store_info] = await con.query(sql);
+    let store_id = store_info[0]['store_id'];
+
+    console.log(store_id);
     const sql_job = `select type from jobs 
                         where job_id in (select FK_store_job_lists_jobs from store_job_lists 
-                        where FK_store_job_lists_stores = ${owner_id});`;
+                        where FK_store_job_lists_stores = ${store_id});`;
     const [job_info] = await con.query(sql_job);
     type = [];
     for ( job of job_info){
@@ -33,7 +37,7 @@ angelRouter.get('/', async (req, res) => {
     let result = {
       'type': type
     }
-
+    console.log('result:',result);
     res.send(result);
     con.release();
   }
@@ -56,9 +60,9 @@ angelRouter.get('/', async (req, res) => {
   }
 */
 angelRouter.post('/call', async (req, res) => { 
-  console.log(req.body)
+  console.log('req: ', req.body);
   const con = await pool.getConnection(async conn => conn);
-
+  let send_flag = false;
   try{
     /* 1. store_id, job_id 가져오고 */
     const store_id = await getStoreIdByOwnerId(req, res);
@@ -89,11 +93,11 @@ angelRouter.post('/call', async (req, res) => {
     end = end.map(e => Number(e));
     start = new Date(start[0], start[1], start[2], start[3], start[4], start[5]).getTime();
     end = new Date(end[0], end[1], end[2], end[3], end[4], end[5]).getTime();
-    console.log(start, end);
+    // console.log(start, end);
     let hours = (end-start)/3600000;
     // console.log(end.getHours(), typeof end.getHours());
     // console.log(start.getHours(), typeof start.getHours());
-    console.log('start, end, hours: ',start,end, hours);
+    // console.log('start, end, hours: ',start,end, hours);
 
     let date = start_date.join('-');
     let time = date +" " + start_time.join(':');
@@ -107,10 +111,9 @@ angelRouter.post('/call', async (req, res) => {
                   values(${store_id}, '${date}', '${time}', ${hours}, ${price}, ${job_id});`
     const [result] = await con.query(sql);
     console.log(result);
-    // res.send('success');
     
     const sql_angel = `select angel_id from angels
-                        where FK_angels_stores = ${store_id} and start_time = '${time}' and FK_angels_jobs = ${job_id} limit 1;`
+                        where FK_angels_stores = ${store_id} and start_time = '${time}' and FK_angels_jobs = ${job_id};`
     const [angel_info] = await con.query(sql_angel);
     console.log('angel: ', angel_info);
     let angel_id = angel_info[0]['angel_id'];
@@ -138,6 +141,7 @@ angelRouter.post('/call', async (req, res) => {
             push_workers['range2'].push(worker['worker_id']);
         }
     }
+
     console.log(push_workers);
     /* 3-2. 추출된 알바생들 token select */
     const sql_token = `select FK_permissions_workers, token from permissions 
@@ -168,22 +172,26 @@ angelRouter.post('/call', async (req, res) => {
         
         setTimeout(function(){
           stop_call(arg)
-        }, 3000);      
+        }, 30000);      
       }
       closure(a);      
     }
     tmp(angel_id);
 
-    setTimeout(()=>{console.log('3초')}, 2000);
+    // setTimeout(()=>{console.log('3초')}, 10000);
     // setTimeout(stop_call, 3000, angel_id);
-    
-    res.send('success');
+    if(send_flag===false){
+      res.send('success');
+      send_flag = true;      
+    }
 
   } 
   catch{
     con.release();
     console.log('catch');
-    res.send('error-owner/angel/call');
+    if(send_flag===false){
+      res.send('error-owner/angel/call');
+    }
   }
     
 })
@@ -209,14 +217,14 @@ async function stop_call(id){
     console.log(push_token);
     
     let info = {
-      'result': 'terminated'
+      'result': 'fail'
     }
     
     push_noti(push_token, info);
     console.log('stopped');
   }
   
-  // return; // 필요함?
+  return; // 필요함?
 }
 
 
@@ -226,17 +234,17 @@ async function stop_call(id){
   } 
 */
 angelRouter.get('/info', async (req, res) => { 
-  console.log(req.body)
+  console.log('req: ', req.query)
   const con = await pool.getConnection(async conn => conn);
 
   try{
-    const angel_id = req.body['angel_id'];
+    const angel_id = req.query['angel_id'];
   
     /* 1. angel 데이터 꺼내고 */
     const sql_angel = `select FK_angels_stores, FK_angels_workers, start_time, working_hours, price, FK_angels_jobs 
                         from angels where angel_id = ${angel_id};`;
     const [angel_info] = await con.query(sql_angel);
-    let store_id = angel_info[0]['FK_angels_workers'];
+    let store_id = angel_info[0]['FK_angels_stores'];
     let worker_id = angel_info[0]['FK_angels_workers'];
     let start_time = angel_info[0]['start_time'].toISOString();
     let date = start_time.split('T')[0];
@@ -246,7 +254,7 @@ angelRouter.get('/info', async (req, res) => {
     let price = angel_info[0]['price'];
     let job_id = angel_info[0]['FK_angels_jobs'];
     
-
+    console.log('angel_info: ', angel_info);
     /* 2. 알바생 name, lat, lon 꺼내고, 유형 가져오고 */
     const sql_store = `select name, latitude, longitude from stores where store_id = ${store_id};`;
     const [store_info] = await con.query(sql_store);
@@ -271,6 +279,7 @@ angelRouter.get('/info', async (req, res) => {
       'dist': dist
     }
 
+    console.log(result);
     res.send(result);
     con.release();
   }
@@ -347,6 +356,7 @@ async function getJobIdByType(req, res) {
     const sql = "SELECT job_id FROM jobs WHERE type=?";
     const [result] = await con.query(sql, req.body['type']);
     con.release();
+    // console.log('getjob : ', result);
     const job_id = result[0]['job_id'];
     return job_id;
     next();

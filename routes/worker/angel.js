@@ -15,18 +15,21 @@ const push_noti = require('../push');
   } 
 */
   angelRouter.get('/info', async (req, res) => { 
-    console.log(req.body)
+    console.log(req.query)
     const con = await pool.getConnection(async conn => conn);
   
     try{
-      const angel_id = req.body['angel_id'];
-      const worker_id = req.body['worker_id'];
+      const angel_id = req.query['angel_id'];
+      const worker_id = req.query['worker_id'];
     
       /* 1. angel 데이터 꺼내고 */
       const sql_angel = `select FK_angels_stores, FK_angels_workers, start_time, working_hours, price, FK_angels_jobs 
                           from angels where angel_id = ${angel_id};`;
       const [angel_info] = await con.query(sql_angel);
-      let store_id = angel_info[0]['FK_angels_workers'];
+
+      console.log('angel: ', angel_info);
+
+      let store_id = angel_info[0]['FK_angels_stores'];
       let start_time = angel_info[0]['start_time'].toISOString();
       let date = start_time.split('T')[0];
       let start = Number(start_time.split('T')[1].split(':')[0]);
@@ -39,13 +42,17 @@ const push_noti = require('../push');
       /* 2. 알바생 name, lat, lon 꺼내고, 유형 가져오고 */
       const sql_store = `select name, latitude, longitude from stores where store_id = ${store_id};`;
       const [store_info] = await con.query(sql_store);
-      const sql_worker = `select name, latitude, longitude from workers where worker_id = ${worker_id};`;
+      const sql_worker = `select name, location, latitude, longitude from workers where worker_id = ${worker_id};`;
       const [worker_info] = await con.query(sql_worker);
+      console.log('store: ', store_info);
+      console.log('worker: ', worker_info);
       
       const sql_job = `select type from jobs where job_id = ${job_id}`;
       const [job] = await con.query(sql_job);
       let type = job[0]['type'];
       
+      console.log('type: ', type);
+
       /* 3. 거리계산 해서 res */
       let dist = getDistance(store_info[0]['latitude'], store_info[0]['longitude'], worker_info[0]['latitude'], worker_info[0]['longitude']);
   
@@ -57,9 +64,10 @@ const push_noti = require('../push');
         'hours': hours,
         'price': price,
         'type': type,
-        'dist': dist
+        'dist': dist,
+        'location': worker_info[0]['location']
       }
-  
+      console.log(result);
       con.release();
       res.send(result);
 
@@ -67,9 +75,7 @@ const push_noti = require('../push');
     catch{
       con.release();
       res.send('error-worker/angel/info');
-    }
-  
-  
+    }  
   })
 
 
@@ -122,8 +128,8 @@ angelRouter.post('/accept', async (req, res) => {
       let worker_name = worker[0]['name'];
       
       let info = {
-        'result': 'completed',
-        'angle_id': angel_id,
+        'result': 'success',
+        'angel_id': angel_id,
         'worker_name': worker_name
       }
     

@@ -1,7 +1,7 @@
 
 const admin = require('firebase-admin');
 
-let serAccount = require('C:/Users/ASUS/Documents/GitHub/namanmoo/baroalba-14460-firebase-adminsdk-8blk3-5680e80fd0.json');
+let serAccount = require('/home/ubuntu/BARO_ALBA/server_gigtime/baroalba-14460-firebase-adminsdk-8blk3-5680e80fd0.json');
 
 admin.initializeApp({
     credential: admin.credential.cert(serAccount),
@@ -13,12 +13,11 @@ function push_noti(target_token, info){
     let message = {
         // type: 'angel_result',
         data: {
-            title: `알바천사 매칭결과를 확인해주세요`,
+            title: `알바천사 결과`,
             body: JSON.stringify(info)
         },
         token: target_token
     }
-    console.log(message);
     admin.messaging()
         .send(message)
         .then(function (res){

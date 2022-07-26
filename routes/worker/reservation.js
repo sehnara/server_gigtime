@@ -3,6 +3,7 @@ const reservationRouter = Router();
 const mysql = require("mysql2/promise");
 
 const nodeGeocoder = require('node-geocoder');
+const { rawListeners } = require('../function');
 
 /* 구글 map api */
 const options = {
@@ -41,9 +42,10 @@ reservationRouter.post('/list', async (req, res, next) => {
   
 reservationRouter.use('/list', async (req, res) => {
     const con = await pool.getConnection(async conn => conn);
-    const sql = `SELECT hourlyorders_id, dynamic_price, min_price, start_time FROM hourly_orders A
-                        INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id
-                        WHERE order_id=? AND work_date=? AND FK_orders_jobs=?`;
+    const sql = `SELECT hourlyorders_id, dynamic_price, min_price, start_time 
+                 FROM hourly_orders A
+                 INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id
+                 WHERE B.order_id=? AND A.work_date=? AND B.FK_orders_jobs=? AND A.status=0`;
     try{
         const [result] = await con.query(sql, [req.body['order_id'],req.body['work_date'],req.body['job_id']])
         console.log(result);
@@ -64,11 +66,38 @@ reservationRouter.use('/list', async (req, res) => {
     'worker_id': 2, 
     'hourlyorders_id': [5, 6, 7, 8, 9]
 } */
-reservationRouter.post('/save', async (req, res) => {
+
+/* 신청한 시간에 예약 가능한지 먼저 체크 */
+reservationRouter.post('/save', async (req, res, next) => {
+    // hourlyorder에 해당하는 일시를 가져오고
+    // 그 시간에 해당 worker의 예약 내역이 존재하는지 보면 된다
+    const con = await pool.getConnection(async conn => conn);
+    const sql = `SELECT hourlyorders_id, start_time
+                  FROM hourly_orders
+                  WHERE FK_hourlyorders_workers=${req.body['worker_id']} AND start_time IN (
+                    SELECT start_time 
+                    FROM hourly_orders 
+                    WHERE hourlyorders_id IN (?)
+                  ) LIMIT 1`
+                     
+    const [result] = await con.query(sql, [req.body['hourlyorder_id']])
+    console.log(result)
+    con.release()
+
+    if (result.length > 0) {
+        res.send("Reservation failed");
+        return;
+    } else {
+        console.log("Reservation is possible!")
+        next();
+    }
+})
+
+reservationRouter.use('/save', async (req, res) => {
     console.log(req.body)
     const con = await pool.getConnection(async conn => conn);
     const sql = "UPDATE hourly_orders SET FK_hourlyorders_workers=?, closing_time=? WHERE hourlyorders_id=?";
-  
+
     for (let i = 0; i < req.body['hourlyorder_id'].length; i++) {
         let tmp = new Date().getTime();
         let timestamp = new Date(tmp);
@@ -124,4 +153,5 @@ async function check_all_hourlyorders_true(hourlyorders_id) {
             console.log('error');
         }
     }
+    con.release();
 };

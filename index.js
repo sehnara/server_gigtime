@@ -176,6 +176,8 @@ app.use('/chatting', chattingRouter);
 /* 일정 주기로 실행되며 DB 업데이트 실행 */
 let timers = require('./timer')
 
+timers.job();
+
 server.listen(PORT, () => {
     console.log(`socket server running on ${PORT}`);
 });

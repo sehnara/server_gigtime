@@ -16,13 +16,6 @@ const ownerRouter = require('./routes/owner');
 const reserveRouter = require('./routes/reserve');
 const applyRouter = require('./routes/apply');
 const permissionRouter = require('./routes/permission');
-
-app.use(express.static(path.join(__dirname, "./build")));
-
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "./build", "index.html"));
-});
-
 const chattingRouter = require('./routes/chatting')
 
 /****************************************/
@@ -69,11 +62,11 @@ io.on('connection', (socket) => {
         socketToRoom[socket.id] = data.room;
 
         socket.join(data.room);
-        // console.log(`[${socketToRoom[socket.id]}]: ${socket.id} enter`);
+        console.log(`[${socketToRoom[socket.id]}]: ${socket.id} enter`);
 
         const usersInThisRoom = users[data.room].filter((user) => user.id !== socket.id);
 
-        // console.log(usersInThisRoom);
+        console.log(usersInThisRoom);
 
         io.sockets.to(socket.id).emit('all_users', usersInThisRoom);
     });
@@ -178,6 +171,15 @@ let timers = require('./timer')
 
 timers.job();
 
+/* production mode */
+if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname, './build')));
+
+    app.get('/', (req, res) => {
+        res.sendFile(path.join(__dirname, './build', 'index.html'));
+    });
+}
+
 server.listen(PORT, () => {
-    console.log(`socket server running on ${PORT}`);
+    console.log(`server running on ${PORT}`);
 });

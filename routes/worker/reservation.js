@@ -3,6 +3,7 @@ const reservationRouter = Router();
 const mysql = require("mysql2/promise");
 
 const nodeGeocoder = require('node-geocoder');
+const { rawListeners } = require('../function');
 
 /* 구글 map api */
 const options = {
@@ -66,8 +67,28 @@ reservationRouter.use('/list', async (req, res) => {
 } */
 
 /* 신청한 시간에 예약 가능한지 먼저 체크 */
-reservationRouter.post('/save', async (req, res) => {
+reservationRouter.post('/save', async (req, res, next) => {
+    // hourlyorder에 해당하는 일시를 가져오고
+    // 그 시간에 해당 worker의 예약 내역이 존재하는지 보면 된다
+    const con = await pool.getConnection(async conn => conn);
+    const sql = `SELECT hourlyorders_id, start_time
+                  FROM hourly_orders
+                  WHERE FK_hourlyorders_workers=${req.body['worker_id']} AND start_time IN (
+                    SELECT start_time 
+                    FROM hourly_orders 
+                    WHERE hourlyorders_id IN (?)
+                  ) LIMIT 1`
+                     
+    const [result] = await con.query(sql, [req.body['hourlyorder_id']])
+    console.log(result)
+    con.release()
 
+    if (result.length > 0) {
+        res.send("Reservation failed");
+        return;
+    } else {
+        next();
+    }
 })
 
 reservationRouter.use('/save', async (req, res) => {
@@ -130,4 +151,5 @@ async function check_all_hourlyorders_true(hourlyorders_id) {
             console.log('error');
         }
     }
+    con.release();
 };

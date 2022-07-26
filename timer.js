@@ -7,7 +7,7 @@ const schedule = require('node-schedule');
 module.exports = {
     /* 매 정시마다 실행되며 orders 테이블 status 업데이트 */
     job: async function () { 
-        schedule.scheduleJob('0 0 * * * *', async function() {
+        schedule.scheduleJob('0 * * * * *', async function() {
             const con = await pool.getConnection(async conn => conn);
             let now = new Date();
             now = masageDateToYearMonthDayHourMinSec(now)
@@ -34,14 +34,14 @@ module.exports = {
                 } else {
                     await con.query(sql2, [3, result[i]['hourlyorders_id']])
                 }
-                con.release();
                 if (!check_list_after_update.includes(result[i]['order_id']))
-                    check_list_after_update.push(result[i]['order_id'])
+                check_list_after_update.push(result[i]['order_id'])
             }
             console.log('점검 orders: ', check_list_after_update)
             for (let i = 0; i < check_list_after_update.length; i++) {
                 check_order_status(check_list_after_update[i])
             }
+            con.release();
         })
     }
 };

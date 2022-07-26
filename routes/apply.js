@@ -11,7 +11,7 @@ applyRouter.post('/load_store', async (req, res) => {
     store_id = req.body['store_id'];
     store = {};
   
-    const sql_store = `SELECT FK_stores_owners, name, address, description, logo, background FROM stores WHERE store_id = ${store_id}`;
+    const sql_store = `SELECT FK_stores_owners, name, address, description, logo_image, background_image FROM stores WHERE store_id = ${store_id}`;
     const [store_info] = await con.query(sql_store);
     // console.log(store_info);
     owner_id = store_info[0]['FK_stores_owners'];

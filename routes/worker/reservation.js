@@ -42,9 +42,10 @@ reservationRouter.post('/list', async (req, res, next) => {
   
 reservationRouter.use('/list', async (req, res) => {
     const con = await pool.getConnection(async conn => conn);
-    const sql = `SELECT hourlyorders_id, dynamic_price, min_price, start_time FROM hourly_orders A
-                        INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id
-                        WHERE order_id=? AND work_date=? AND FK_orders_jobs=?`;
+    const sql = `SELECT hourlyorders_id, dynamic_price, min_price, start_time 
+                 FROM hourly_orders A
+                 INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id
+                 WHERE B.order_id=? AND A.work_date=? AND B.FK_orders_jobs=? AND A.status=0`;
     try{
         const [result] = await con.query(sql, [req.body['order_id'],req.body['work_date'],req.body['job_id']])
         console.log(result);
@@ -87,6 +88,7 @@ reservationRouter.post('/save', async (req, res, next) => {
         res.send("Reservation failed");
         return;
     } else {
+        console.log("Reservation is possible!")
         next();
     }
 })

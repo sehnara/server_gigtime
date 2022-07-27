@@ -149,7 +149,7 @@ mypageRouter.post("/myStore", async (req, res, next) => {
 
   req.body["store_ids"] = store_ids;
   con.release();
-  next();
+  next(); 
 });
 
 /* 2. stores 테이블에서 store_id에 해당하는 name, address 가져오기 */

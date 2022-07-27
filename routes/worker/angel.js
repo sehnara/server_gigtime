@@ -113,6 +113,7 @@ angelRouter.post('/accept', async (req, res) => {
       /* 2. angel 테이블에 worker 추가 및 status 갱신 */
       const sql = `update angels set FK_angels_workers = ${worker_id}, status = 1 where angel_id = ${angel_id};`;
       await con.query(sql);
+      // console.log('UPDATE');      
   
       /* 3. 모집종료, 사장님한테 push() 요청 */
       const sql_token = `select FK_permissions_owners, token from permissions 
@@ -127,6 +128,7 @@ angelRouter.post('/accept', async (req, res) => {
       const [worker] = await con.query(sql_worker);
       let worker_name = worker[0]['name'];
       
+      let title = `알바천사 결과`;
       let info = {
         'result': 'success',
         'angel_id': angel_id,
@@ -134,7 +136,7 @@ angelRouter.post('/accept', async (req, res) => {
       }
     
       /* 3-3. tokens 로 push_angel() 호출 */
-      push_noti(push_token, info);
+      push_noti(push_token, title, info);
       result = 'success';
     }
     else{

@@ -28,7 +28,7 @@ storeerRouter.post('/list', async (req, res) => {
         /* 2. store 정보 모두 가져오기 */
         // 내게 권한 없는 정보만 가져와야 한다. 어떻게?
         const sql2 =
-            'SELECT * FROM stores WHERE store_id NOT IN (SELECT FK_qualifications_stores FROM qualifications WHERE FK_qualifications_workers=?)';
+            'SELECT * FROM stores WHERE store_id NOT IN (SELECT FK_qualifications_stores FROM qualifications WHERE FK_qualifications_workers=?) order by store_id;';
         const [stores_info] = await con.query(sql2, req.body['worker_id']);
         // console.log(stores_info);
 
@@ -37,9 +37,9 @@ storeerRouter.post('/list', async (req, res) => {
         // console.log(stores);
 
         con.release();
-        /* 결과를 랜덤하게 정렬 */
-        const shuffle = () => Math.random() - 0.5;
-        stores.sort(shuffle);
+        // /* 결과를 랜덤하게 정렬 */
+        // const shuffle = () => Math.random() - 0.5;
+        // stores.sort(shuffle);
 
         res.send(stores);
     } catch {

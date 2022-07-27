@@ -63,6 +63,7 @@ angelRouter.post('/call', async (req, res) => {
   console.log('req: ', req.body);
   const con = await pool.getConnection(async conn => conn);
   let send_flag = false;
+  let send_msg = '';
   try{
     /* 1. store_id, job_id 가져오고 */
     const store_id = await getStoreIdByOwnerId(req, res);
@@ -112,11 +113,12 @@ angelRouter.post('/call', async (req, res) => {
     const [result] = await con.query(sql);
     console.log(result);
     
-    const sql_angel = `select angel_id from angels
-                        where FK_angels_stores = ${store_id} and start_time = '${time}' and FK_angels_jobs = ${job_id};`
+    // const sql_angel = `select angel_id from angels
+    //                     where FK_angels_stores = ${store_id} and start_time = '${time}' and FK_angels_jobs = ${job_id};`
+    const sql_angel = `select last_insert_id() from angels limit 1;`
     const [angel_info] = await con.query(sql_angel);
     console.log('angel: ', angel_info);
-    let angel_id = angel_info[0]['angel_id'];
+    let angel_id = angel_info[0]['last_insert_id()'];
 
     /* 3. push()요청 */
     /* 3-1. qualified 알바생들 거리계산 */
@@ -142,46 +144,58 @@ angelRouter.post('/call', async (req, res) => {
         }
     }
 
-    console.log(push_workers);
-    /* 3-2. 추출된 알바생들 token select */
-    const sql_token = `select FK_permissions_workers, token from permissions 
-                        where FK_permissions_workers in (${push_workers['range1']});`;
-    const [tokens] = await con.query(sql_token);
+    console.log('push_workers: ', push_workers);
 
-    let push_tokens = []
-    for (let token of tokens){
-        push_tokens.push(token['token']);
+    if (push_workers['range1'].length<1){
+      console.log('없음');
+      send_msg = 'noone';
     }
+    else{
 
-    console.log(push_tokens);
-
-    /* 3-3. tokens 로 push_angel() 호출 */
-
-    let info = {
-      'store_name':store_name,
-      'angel_id': angel_id
-    }
-    push_angel(push_tokens, info)
-    con.release();
-
-    function tmp(a){
-      function closure(arg){
-        /* 푸시보내고 10초 뒤에 모집종료 함수 호출 */
-        /* 그전에 매칭되면 전역변수 갱신 및 모집종료*/
-        /* 모집종료가면 flag 확인하고 종료 */
-        
-        setTimeout(function(){
-          stop_call(arg)
-        }, 30000);      
+      /* 3-2. 추출된 알바생들 token select */
+      const sql_token = `select FK_permissions_workers, token from permissions 
+                          where FK_permissions_workers in (${push_workers['range1']});`;
+      const [tokens] = await con.query(sql_token);
+  
+      let push_tokens = []
+      for (let token of tokens){
+          push_tokens.push(token['token']);
       }
-      closure(a);      
+  
+      console.log(push_tokens);
+  
+      /* 3-3. tokens 로 push_angel() 호출 */
+  
+      let info = {
+        'store_name':store_name,
+        'angel_id': angel_id
+      }
+      push_angel(push_tokens, info)
+      con.release();
+  
+      function tmp(a){
+        function closure(arg){
+          /* 푸시보내고 10초 뒤에 모집종료 함수 호출 */
+          /* 그전에 매칭되면 전역변수 갱신 및 모집종료*/
+          /* 모집종료가면 flag 확인하고 종료 */
+          
+          setTimeout(function(){
+            stop_call(arg)
+            // console.log('3초');
+            // console.log(angel_id)
+            // stop_call(angel_id) 
+          }, 5000);      
+        }
+        closure(a);      
+      }
+      tmp(angel_id);
+  
+      // setTimeout(()=>{console.log('3초')}, 10000);
+      // setTimeout(stop_call, 3000, angel_id);
+      send_msg = 'success';
     }
-    tmp(angel_id);
-
-    // setTimeout(()=>{console.log('3초')}, 10000);
-    // setTimeout(stop_call, 3000, angel_id);
     if(send_flag===false){
-      res.send('success');
+      res.send(send_msg);
       send_flag = true;      
     }
 
@@ -202,7 +216,7 @@ async function stop_call(id){
 
   const sql = `select FK_angels_stores, status from angels where angel_id = ${id};`;
   const [angel_info] = await con.query(sql);
-
+  console.log('status: ',angel_info[0]['status']);
   if (angel_info[0]['status']===0){
     const sql_status = `update angels set status = 2 where angel_id = ${id};`;
     const [result_status] = await con.query(sql_status);
@@ -215,12 +229,12 @@ async function stop_call(id){
     
     let push_token = token[0]['token'];
     console.log(push_token);
-    
+    let title = `알바천사 결과`;
     let info = {
       'result': 'fail'
     }
     
-    push_noti(push_token, info);
+    push_noti(push_token, title, info);
     console.log('stopped');
   }
   

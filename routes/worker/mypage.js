@@ -77,6 +77,8 @@ mypageRouter.post('/work', async (req, res, next) => {
       key.push(tmp['name']);
       key.push(tmp['type']);
       key.push(tmp['address']);
+      key.push(tmp['checkin_flag']);
+      key.push(tmp['status']);
   
       /* 이미 저장된 key인지 확인 */
       if (!check.hasOwnProperty(key)) {
@@ -198,7 +200,7 @@ mypageRouter.post('/interview', async (req, res) => {
     worker_id = req.body['worker_id'];
     cards = [];
     // console.log(worker_id);
-    const sql = `SELECT SQL_NO_CACHE a.interview_id, a.FK_interviews_stores, a.interview_date, a.FK_interviews_interview_times, 
+    const sql = `SELECT a.interview_id, a.FK_interviews_stores, a.interview_date, a.FK_interviews_interview_times, 
                       a.reject_flag, a.result_flag, a.link, a.state, b.name, b.address, c.time
                       From interviews as a
                       inner join stores as b on a.FK_interviews_stores = b.store_id

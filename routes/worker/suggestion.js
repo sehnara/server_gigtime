@@ -55,12 +55,18 @@ suggestionRouter.post('/', async (req, res) => {
       const [result] = await con.query(sql, [date, new_times, type_result[0]['job_id'], req.body['min_price'], req.body['worker_id']]);
         // console.log('모든 개수: ' + result.length);
       let value = await suggestion(req.body['worker_id'], result, new_times);
-      if(value === -1){
+      // if(value === -1){
+      //   con.release();
+      //   res.send('error-worker/suggestion');              
+      // }
+      console.log('value: ', value['price']);
+      if(value['price']===0){
         con.release();
-        res.send('error-worker/suggestion');              
+        res.send('notFound');
+      }{
+        con.release();
+        res.send(value);      
       }
-      con.release();
-      res.send(value);      
     }
     catch{
       con.release();
@@ -310,7 +316,7 @@ async function suggestion(worker_id, hourly_orders, start_times)
     catch{
       con.release();
   
-      return -1;
+      return 'error-worker/suggestion';
     }
 }
 

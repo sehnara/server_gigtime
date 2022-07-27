@@ -53,7 +53,7 @@ applyRouter.post('/load_interview', async (req, res) => {
     let today = new Date();
     year = today.getFullYear();
     if (!month) month = today.getMonth() + 1;
-    day = today.getDate();
+    n_day = today.getDate();
 
     interview = {};
     const sql = `SELECT a.interview_date, b.time 
@@ -78,11 +78,25 @@ applyRouter.post('/load_interview', async (req, res) => {
 
     let yet = today.getHours();
     // console.log('yet',yet);
-    times[day].splice(0, hours[yet] + 1);
+    times[n_day].splice(0, hours[yet] + 1);
     // console.log('yet',times);
 
-    for (day; day <= calendar[month]; day++) {
+    for (day=n_day; day <= calendar[month]; day++) {
         month_str = String(month);
+        day_str = String(day);
+        month_str = month_str.padStart(2, '0');
+        day_str = day_str.padStart(2, '0');
+        new_date = `${year}-${month_str}-${day_str}`;
+
+        if (interview[new_date]) {
+            for (hour of interview[new_date]) {
+                times[day].splice(hours[hour], 1);
+            }
+        }
+        result.push({ date: new_date, time: times[day] });
+    }
+    for (day=1; day < n_day; day++) {
+        month_str = String(Number(month)+1);
         day_str = String(day);
         month_str = month_str.padStart(2, '0');
         day_str = day_str.padStart(2, '0');

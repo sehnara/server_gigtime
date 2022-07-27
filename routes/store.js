@@ -37,9 +37,9 @@ storeerRouter.post('/list', async (req, res) => {
         // console.log(stores);
 
         con.release();
-        /* 결과를 랜덤하게 정렬 */
-        const shuffle = () => Math.random() - 0.5;
-        stores.sort(shuffle);
+        // /* 결과를 랜덤하게 정렬 */
+        // const shuffle = () => Math.random() - 0.5;
+        // stores.sort(shuffle);
 
         res.send(stores);
     } catch {

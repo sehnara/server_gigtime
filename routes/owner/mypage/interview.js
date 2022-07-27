@@ -64,10 +64,10 @@ interviewRouter.post('/result', async (req, res) => {
     try {
         msg = 'update state';
         if (value === 'true') {
-            const sql = `update interviews set state = 0, result_flag = 1 where interview_id = ${interview_id};`;
+            const sql = `update interviews set state = 5, result_flag = 1 where interview_id = ${interview_id};`;
             const [result] = await con.query(sql);
         } else {
-            const sql = `update interviews set state = 0, result_flag = 0 where interview_id = ${interview_id};`;
+            const sql = `update interviews set state = 5, result_flag = 0 where interview_id = ${interview_id};`;
             const [result] = await con.query(sql);
         }
         // const [result] = await con.query(sql);

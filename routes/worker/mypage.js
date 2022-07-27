@@ -201,7 +201,7 @@ mypageRouter.post('/interview', async (req, res) => {
                       From interviews as a
                       inner join stores as b on a.FK_interviews_stores = b.store_id
                       inner join interview_times as c on a.FK_interviews_interview_times = c.interview_time_id 
-                      where FK_interviews_workers = ${worker_id} and a.reject_flag=0 order by state, interview_date, time;`;
+                      where FK_interviews_workers = ${worker_id} and a.reject_flag=0 and a.state>0 order by state, interview_date, time;`;
   const [result] = await con.query(sql);
   n = result.length;
   pre_state = 0;

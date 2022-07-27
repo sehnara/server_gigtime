@@ -1,8 +1,8 @@
-const { Router } = require('express');
+const { Router } = require("express");
 const imageUploadRouter = Router();
-const mysql = require('mysql2/promise');
-const { upload } = require('../../../middleware/imageUpload');
-const pool = require('../../function');
+const mysql = require("mysql2/promise");
+const { upload } = require("../../../middleware/imageUpload");
+const pool = require("../../function");
 
 // imageUploadRouter.post('/logo', upload('logo').single('logo'), async (req, res) => {
 //     const con = await pool.getConnection(async (conn) => conn);
@@ -22,22 +22,26 @@ const pool = require('../../function');
 //     }
 // });
 
-imageUploadRouter.post('/background', upload('background').single('background'), async (req, res) => {
+imageUploadRouter.post(
+  "/background",
+  upload("background").single("background"),
+  async (req, res) => {
     const con = await pool.getConnection(async (conn) => conn);
     const url = req.file.key;
     console.log(req.file);
-    const owner_id = req.body['id'];
+    const owner_id = req.body["id"];
     try {
-        const sql = `UPDATE stores set background_image = "${url}" WHERE FK_stores_owners = ${owner_id}`;
+      const sql = `UPDATE stores set background_image = "${url}" WHERE FK_stores_owners = ${owner_id}`;
 
-        const [result] = await con.query(sql);
+      const [result] = await con.query(sql);
 
-        con.release();
-        res.json({ state: 'success', url: url });
+      con.release();
+      res.json({ state: "success", url: url });
     } catch {
-        con.release();
-        res.json({ state: 'fail' });
+      con.release();
+      res.json({ state: "fail" });
     }
-});
+  }
+);
 
 module.exports = imageUploadRouter;

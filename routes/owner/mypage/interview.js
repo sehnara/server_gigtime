@@ -3,6 +3,7 @@ const interviewRouter = Router();
 const mysql = require('mysql2/promise');
 
 const pool = require('../../function');
+const push_noti = require('../../push');
 
 /* state = 1(입장대기)일 때  */
 /* {inerview_id:1 } */
@@ -33,11 +34,13 @@ interviewRouter.post('/accept', async (req, res) => {
     console.log(interview_id, value);
     try {
         msg = 'update state';
-        if (value != true) {
-            const sql = `update interviews set state = 3, reject_flag = 1 where interview_id = ${interview_id};`;
+        if (value === 'true') {    // 수락
+            const sql = `update interviews set state = 1, reject_flag = 0 where interview_id = ${interview_id};`;
+            // const sql = `update interviews set state = 3, reject_flag = 0 where interview_id = ${interview_id};`;
             const [result] = await con.query(sql);
-        } else {
-            const sql = `update interviews set state = 3, reject_flag = 0 where interview_id = ${interview_id};`;
+        } else {                // 거절
+            const sql = `update interviews set state = 0, reject_flag = 1 where interview_id = ${interview_id};`;
+            // const sql = `update interviews set state = 3, reject_flag = 1 where interview_id = ${interview_id};`;
             const [result] = await con.query(sql);
         }
         // console.log('result: ',result);
@@ -70,6 +73,36 @@ interviewRouter.post('/result', async (req, res) => {
         }
         // const [result] = await con.query(sql);
         // console.log('result: ',result);
+
+
+        
+        /* worker_id 찾고 */
+        msg = 'select worker_id';
+        const sql_worker = `select FK_interviews_workers, FK_interviews_stores from interviews where interview_id = ${interview_id};`;
+        const [worker] = await con.query(sql_worker);
+        
+        msg = 'select name';
+        const sql_store = `select name from stores where store_id = ${worker[0]['FK_interviews_stores']};`;
+        const [store] = await con.query(sql_store);
+        
+        /* token 찾아서 push */
+        
+        msg = 'select token';
+        const sql_token = `select token from permissions 
+        where FK_permissions_workers = ${worker[0]['FK_interviews_workers']};`;
+        const [token] = await con.query(sql_token);
+        
+        let push_token = token[0]['token'];
+        console.log(push_token);
+        
+        let title = '면접 결과'
+        let info = {
+            'store_name': store[0]['name'],
+        }
+        
+        msg = 'push_noti';
+        push_noti(push_token, title, info);
+
         con.release();
         res.send('success');
     } catch {

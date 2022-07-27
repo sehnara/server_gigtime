@@ -47,41 +47,43 @@ mypageRouter.post("/work", async (req, res, next) => {
                   INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id
                   INNER JOIN stores C ON B.FK_orders_stores = C.store_id 
                   INNER JOIN jobs D ON B.FK_orders_jobs = D.job_id
-                  WHERE A.FK_hourlyorders_workers='${req.body["worker_id"]}'`;
-  // const sql = `SELECT * FROM hourly_orders WHERE status=0`
-  const [result] = await con.query(sql);
-  try {
-    req.body["hourly_orders"] = result;
-    con.release();
-    next();
-  } catch {
-    con.release();
-    res.send("error");
-  }
-});
-
-/* 3. 출력 형태로 data masage */
-mypageRouter.use("/work", async (req, res, next) => {
-  console.log(req.body);
-  let send_data = new Array();
-
-  let len = req.body["hourly_orders"].length;
-  let tmp;
-  let check = {};
-  let idx = 0;
-  for (let i = 0; i < len; i++) {
-    let key = new Array();
-    tmp = req.body["hourly_orders"][i];
-    key.push(masageDateToYearMonthDay(tmp["work_date"]));
-    key.push(tmp["name"]);
-    key.push(tmp["type"]);
-    key.push(tmp["address"]);
-
-    /* 이미 저장된 key인지 확인 */
-    if (!check.hasOwnProperty(key)) {
-      send_data.push(key);
-      check[Object.assign(new Array(), key)] = idx;
-      idx += 1;
+                  WHERE A.FK_hourlyorders_workers='${req.body['worker_id']}'`
+    // const sql = `SELECT * FROM hourly_orders WHERE status=0`
+    const [result] = await con.query(sql);
+    try {
+      req.body['hourly_orders'] = result;
+        con.release();
+        next();
+    } catch {
+        con.release();
+        res.send('error');
+    }
+  })
+  
+  /* 3. 출력 형태로 data masage */
+  mypageRouter.use('/work', async (req, res, next) => {
+    console.log(req.body);
+    let send_data = new Array();
+  
+    let len = req.body['hourly_orders'].length;
+    let tmp;
+    let check = {};
+    let idx = 0;
+    for (let i = 0; i < len; i++) {
+      let key = new Array();
+      tmp = req.body['hourly_orders'][i];
+      key.push(masageDateToYearMonthDay(tmp['work_date']));
+      key.push(tmp['name']);
+      key.push(tmp['type']);
+      key.push(tmp['address']);
+      key.push(tmp['checkin_flag']);
+      key.push(tmp['status']);
+  
+      /* 이미 저장된 key인지 확인 */
+      if (!check.hasOwnProperty(key)) {
+        send_data.push(key);
+        check[Object.assign(new Array(), key)] = idx;
+        idx += 1; 
     }
 
     /* send_data['key']에 key: value 데이터 삽입 */
@@ -188,13 +190,13 @@ mypageRouter.use("/myStore", async (req, res) => {
 
 // 마이페이지 - 면접시간표
 // 'worker_id' : 1
-mypageRouter.post("/interview", async (req, res) => {
-  console.log("mypage:", req.body);
-  const con = await pool.getConnection(async (conn) => conn);
-  worker_id = req.body["worker_id"];
-  cards = [];
-  // console.log(worker_id);
-  const sql = `SELECT SQL_NO_CACHE a.interview_id, a.FK_interviews_stores, a.interview_date, a.FK_interviews_interview_times, 
+mypageRouter.post('/interview', async (req, res) => {
+    console.log('mypage:', req.body)
+    const con = await pool.getConnection(async conn => conn);
+    worker_id = req.body['worker_id'];
+    cards = [];
+    // console.log(worker_id);
+    const sql = `SELECT a.interview_id, a.FK_interviews_stores, a.interview_date, a.FK_interviews_interview_times, 
                       a.reject_flag, a.result_flag, a.link, a.state, b.name, b.address, c.time
                       From interviews as a
                       inner join stores as b on a.FK_interviews_stores = b.store_id

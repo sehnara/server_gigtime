@@ -62,6 +62,8 @@ workRouter.use('/', async (req, res, next) => {
         key.push(masageDateToYearMonthDay(tmp['work_date']));
         key.push(tmp['type']);
         key.push(tmp['order_id']);
+        key.push(tmp['checkin_flag']);
+        key.push(tmp['status']);
 
         /* 이미 저장된 key인지 확인 */
         if (!check.hasOwnProperty(key)) {

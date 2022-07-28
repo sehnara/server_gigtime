@@ -59,8 +59,12 @@ suggestionRouter.post('/', async (req, res) => {
       //   con.release();
       //   res.send('error-worker/suggestion');              
       // }
-      console.log('value: ', value['price']);
-      if(value['price']===0){
+      // console.log('value: ', value);
+      // console.log('value: ', value['price']);
+      // console.log('value: ', typeof value['price']);
+      // console.log('value: ', value['visit']);
+      // console.log('value: ', value['visit'].length);
+      if(value['price'].length<1){
         con.release();
         res.send('notFound');
       }{

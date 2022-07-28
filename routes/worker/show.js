@@ -17,7 +17,6 @@ showRouter.post("/hourly_orders", async (req, res, next) => {
   /* 1. 해당 order에 해당하는 hourly_order 가져오기. */
   // FK_hourlyorders_workers === NULL인 것만.
   let cursor = Number(req.body["cursor"]) || 0;
-  console.log(cursor);
   const sql = `SELECT A.hourlyorders_id, A.FK_hourlyorders_orders AS order_id, A.FK_hourlyorders_workers, A.work_date, A.start_time, B.FK_orders_stores AS store_id, B.FK_orders_jobs AS job_id, B.description, B.min_price, C.FK_stores_owners, C.name, C.address, C.latitude, C.longitude, C.minimum_wage, C.background_image_url, C.background_image, D.type FROM hourly_orders A 
                     INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id 
                     INNER JOIN stores C ON B.FK_orders_stores = C.store_id 
@@ -48,15 +47,19 @@ showRouter.use("/hourly_orders", async (req, res) => {
     const sql =
       "SELECT latitude, longitude, `range` FROM workers WHERE worker_id=?";
     const [result] = await con.query(sql, req.body["worker_id"]);
-    con.release();
-    res.send(
-      masage_data(
-        result[0]["latitude"],
-        result[0]["longitude"],
-        result[0]["range"],
-        req.body["valid_hourly_orders"]
-      )
+    con.release(); 
+    const data = masage_data(
+      result[0]["latitude"],
+      result[0]["longitude"],
+      result[0]["range"],
+      req.body["valid_hourly_orders"]
     );
+    if(data.length!==0){
+      res.send(data);
+    }
+    else{
+      res.send('notFound');
+    }
   } catch {
     con.release();
     res.send("error-show/hourly_orders");
@@ -282,6 +285,7 @@ function masage_data(latitude, longitude, range, data) {
   //     return 0;
   // })
 
+  // console.log('마사지 data: ', databox);
   return databox;
 }
 

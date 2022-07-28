@@ -67,20 +67,20 @@ for (a = 0; a <= 31; a += 1) {
 }
 
 // 'store_id' : 1, 'interview_month' : 3
-applyRouter.post('/load_interview', async (req, res) => {
-    const con = await pool.getConnection(async (conn) => conn);
-    console.log('11111111', req.body);
-    store_id = req.body['store_id'];
-    month = req.body['interview_month'];
-    result = [];
+applyRouter.post("/load_interview", async (req, res) => {
+  const con = await pool.getConnection(async (conn) => conn);
+  console.log("11111111", req.body);
+  store_id = req.body["store_id"];
+  month = req.body["interview_month"];
+  result = [];
 
-    let today = new Date();
-    year = today.getFullYear();
-    if (!month) month = today.getMonth() + 1;
-    n_day = today.getDate();
+  let today = new Date();
+  year = today.getFullYear();
+  if (!month) month = today.getMonth() + 1;
+  n_day = today.getDate();
 
-    interview = {};
-    const sql = `SELECT a.interview_date, b.time 
+  interview = {};
+  const sql = `SELECT a.interview_date, b.time 
                     FROM interviews AS a, interview_times AS b
                     WHERE a.FK_interviews_interview_times = b.interview_time_id 
                     AND a.FK_interviews_stores = ${store_id}`;
@@ -100,44 +100,43 @@ applyRouter.post('/load_interview', async (req, res) => {
     }
   }
 
-    let yet = today.getHours();
-    // console.log('yet',yet);
-    times[n_day].splice(0, hours[yet] + 1);
-    // console.log('yet',times);
+  let yet = today.getHours();
+  // console.log('yet',yet);
+  times[n_day].splice(0, hours[yet] + 1);
+  // console.log('yet',times);
 
-    for (day=n_day; day <= calendar[month]; day++) {
-        month_str = String(month);
-        day_str = String(day);
-        month_str = month_str.padStart(2, '0');
-        day_str = day_str.padStart(2, '0');
-        new_date = `${year}-${month_str}-${day_str}`;
+  for (day = n_day; day <= calendar[month]; day++) {
+    month_str = String(month);
+    day_str = String(day);
+    month_str = month_str.padStart(2, "0");
+    day_str = day_str.padStart(2, "0");
+    new_date = `${year}-${month_str}-${day_str}`;
 
-        if (interview[new_date]) {
-            for (hour of interview[new_date]) {
-                times[day].splice(hours[hour], 1);
-            }
-        }
-        result.push({ date: new_date, time: times[day] });
+    if (interview[new_date]) {
+      for (hour of interview[new_date]) {
+        times[day].splice(hours[hour], 1);
+      }
     }
-    for (day=1; day < n_day; day++) {
-        month_str = String(Number(month)+1);
-        day_str = String(day);
-        month_str = month_str.padStart(2, '0');
-        day_str = day_str.padStart(2, '0');
-        new_date = `${year}-${month_str}-${day_str}`;
+    result.push({ date: new_date, time: times[day] });
+  }
+  for (day = 1; day < n_day; day++) {
+    month_str = String(Number(month) + 1);
+    day_str = String(day);
+    month_str = month_str.padStart(2, "0");
+    day_str = day_str.padStart(2, "0");
+    new_date = `${year}-${month_str}-${day_str}`;
 
-        if (interview[new_date]) {
-            for (hour of interview[new_date]) {
-                times[day].splice(hours[hour], 1);
-            }
-        }
-        result.push({ date: new_date, time: times[day] });
+    if (interview[new_date]) {
+      for (hour of interview[new_date]) {
+        times[day].splice(hours[hour], 1);
+      }
     }
-    console.log(result);
-    if (result[0]['time'].length === 0) {
-        result.shift();
-    }
-
+    result.push({ date: new_date, time: times[day] });
+  }
+  console.log(result);
+  if (result[0]["time"].length === 0) {
+    result.shift();
+  }
 
   // console.log(">>>>>>>>>>>>", result);
   // return result;

@@ -84,6 +84,9 @@ interviewRouter.post("/result", async (req, res) => {
     const sql_store = `select name from stores where store_id = ${worker[0]["FK_interviews_stores"]};`;
     const [store] = await con.query(sql_store);
 
+    const sql_qual = `insert into qualifications (fk_qualifications_workers, FK_qualifications_stores) values(${worker[0]["FK_interviews_workers"]}, ${worker[0]["FK_interviews_stores"]});`;
+    const [qual] = await con.qual(sql_qual);
+
     /* token 찾아서 push */
 
     msg = "select token";

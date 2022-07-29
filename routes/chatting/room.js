@@ -1,9 +1,9 @@
 const { Router } = require('express');
 const roomRouter = Router();
 const mysql = require("mysql2/promise");
-const { getConnection } = require('../function');
+const { getConnection } = require('../../function');
 
-const pool = require('../function');
+const pool = require('../../function');
 
 /**************************
  *         create         *

@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const angelRouter = Router();
 
-const pool = require('../function');
+const pool = require('../../function');
 const push_noti = require('../push');
 // const push_angel = require('../');
 // const stop_call = require('../owner/angel');
@@ -14,7 +14,7 @@ const push_noti = require('../push');
     'worker_id' : 17
   } 
 */
-  angelRouter.get('/info', async (req, res) => { 
+angelRouter.get('/info', async (req, res) => { 
     console.log(req.query)
     const con = await pool.getConnection(async conn => conn);
   
@@ -74,7 +74,7 @@ const push_noti = require('../push');
     }
     catch{
       con.release();
-      res.send('error-worker/angel/info');
+      res.send('error');
     }  
   })
 
@@ -150,7 +150,7 @@ angelRouter.post('/accept', async (req, res) => {
   } 
   catch{
     con.release();
-    res.send('error-worker/angel/accept');
+    res.send('error');
   }    
 })
   
@@ -158,103 +158,6 @@ angelRouter.post('/accept', async (req, res) => {
 module.exports = angelRouter;
 
 /************************ function *************************/
-
-// async function getStoreIdByOwnerId (req, res, next) {
-//     console.log(req.body)
-//     const con = await pool.getConnection(async conn => conn);
-  
-//     try {
-//       const sql = "SELECT store_id FROM stores WHERE FK_stores_owners=?";
-//       const [result] = await con.query(sql, req.body['owner_id']);
-//       console.log(result);
-//       req.body['store_id'] = result[0]['store_id'];
-//       con.release();
-//       next();
-//     }
-//     catch {
-//       console.log('error')
-//       res.send('error');
-//     }
-//   }
-
-// /* type으로 jobs 테이블에서 job_id 가져오기 */
-// async function getJobIdByType(req, res, next) {
-//     const con = await pool.getConnection(async conn => conn);
-  
-//     try {
-//       const sql = "SELECT job_id FROM jobs WHERE type=?";
-//       const [result] = await con.query(sql, req.body['type']);
-//       console.log(result);
-//       req.body['job_id'] = result[0]['job_id'];
-//       con.release();
-//       next();
-//     }
-//     catch {
-//       res.send('error');
-//     }
-//   }
-
-/* owner_id로 stores 테이블에서 store id 가져오기 */
-async function getStoreIdByOwnerId (req, res) {
-    const con = await pool.getConnection(async conn => conn);
-  
-    try {
-      const sql = "SELECT store_id FROM stores WHERE FK_stores_owners=?";
-      const [result] = await con.query(sql, req.body['owner_id']);
-      con.release();
-      const store_id = result[0]['store_id'];
-      return store_id;
-    //   next();
-    }
-    catch {
-      res.send('error-angel/call-getStoreIdByOwnerId');
-    }
-  }
-
-/* type으로 jobs 테이블에서 job_id 가져오기 */
-async function getJobIdByType(req, res) {
-    const con = await pool.getConnection(async conn => conn);
-  
-    try {
-      const sql = "SELECT job_id FROM jobs WHERE type=?";
-      const [result] = await con.query(sql, req.body['type']);
-      con.release();
-      const job_id = result[0]['job_id'];
-      return job_id;
-      next();
-    }
-    catch {
-      res.send('error-angel/call-getJobIdByType');
-    }
-  }
-
-
-/* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00 00:00:00'형식으로 변환하여 리턴 */
-function masageDateToYearMonthDayHourMinSec(date_timestamp) {
-    let date = new Date(date_timestamp);
-    let hour = date.getHours().toString();
-    let min = date.getMinutes().toString();
-    let sec = date.getSeconds().toString();
-  
-    if (hour.length === 1) hour = '0'+hour
-    if (min.length === 1) min = '0'+min
-    if (sec.length === 1) sec = '0'+sec
-  
-    return (masageDateToYearMonthDay(date_timestamp)+' '+hour+':'+min+':'+sec);
-  }
-
-/* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00'형식으로 변환하여 리턴 */
-function masageDateToYearMonthDay(date_timestamp) {
-    let date = new Date(date_timestamp);
-    let year = date.getFullYear().toString();
-    let month = (date.getMonth() + 1).toString();
-    let day = date.getDate().toString();
-    
-    if (month.length === 1) month = '0'+month;
-    if (day.length === 1) day = '0'+day;
-    
-    return (year+'-'+month+'-'+day);
-  }
 
   /* 두 개의 좌표 간 거리 구하기 */
 function getDistance(lat1, lon1, lat2, lon2) {
@@ -277,7 +180,7 @@ function getDistance(lat1, lon1, lat2, lon2) {
     else dist = Math.round(dist / 100) * 100;
     
     return dist;
-  }
+}
 
 
 

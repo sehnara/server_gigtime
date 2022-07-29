@@ -6,7 +6,7 @@ const chattingRouter = Router();
 const roomRouter = require('./chatting/room');
 const messageRouter = require('./chatting/message');
 
-const pool = require("./function");
+const pool = require("../function");
 
 chattingRouter.use('/room', roomRouter);
 chattingRouter.use('/message', messageRouter);

@@ -1,5 +1,4 @@
 const { Router } = require("express");
-const mysql = require("mysql2/promise");
 const nodeGeocoder = require("node-geocoder");
 const signupRouter = Router();
 
@@ -10,7 +9,7 @@ const options = {
 };
 const geocoder = nodeGeocoder(options);
 
-const pool = require('../function');
+const pool = require('../../function');
 
 /* name, email 정보 전달 받아서 worker table에 insert 
   data form === 
@@ -23,22 +22,34 @@ const pool = require('../function');
 
 /* 1. workers 테이블에 INSERT */
 signupRouter.post("/", getPos, async (req, res, next) => {
-  console.log("aaa");
-  console.log(req.body);
+  // console.log("aaa");
+  // console.log(req.body);
   const con = await pool.getConnection(async (conn) => conn);
   const sql = "INSERT INTO workers SET ?";
-  await con.query(sql, req.body);
-  con.release();
-  next();
+  try{
+    await con.query(sql, req.body);
+    con.release();
+    next();
+  }
+  catch{ 
+    con.release();
+    res.send('error');
+  }
 });
 
 /* 2. workers 테이블에서 email로 worker_id 찾아서 send */
 signupRouter.use("/", async (req, res) => {
   const con = await pool.getConnection(async (conn) => conn);
   const sql = "SELECT worker_id FROM workers WHERE email=?";
-  const [result] = await con.query(sql, req.body["email"]);
-  con.release();
-  res.send(result[0]["worker_id"].toString());
+  try{
+    const [result] = await con.query(sql, req.body["email"]);
+    con.release();
+    res.send(result[0]["worker_id"].toString());
+  }
+  catch{
+    con.release();
+    res.send('error');
+  }
 });
 
 module.exports = signupRouter;

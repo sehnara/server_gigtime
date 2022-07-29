@@ -1,7 +1,6 @@
 const { Router } = require("express");
 const showRouter = Router();
-const mysql = require("mysql2/promise");
-const pool = require("../function");
+const pool = require("../../function");
 
 let util = require("util");
 const { request } = require("http");
@@ -62,7 +61,7 @@ showRouter.use("/hourly_orders", async (req, res) => {
     }
   } catch {
     con.release();
-    res.send("error-show/hourly_orders");
+    res.send("error");
   }
 });
 

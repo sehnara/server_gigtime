@@ -1,7 +1,6 @@
 const { Router } = require("express");
 const angelRouter = Router();
-
-const pool = require("../function");
+const pool = require("../../function");
 const push_angel = require("../push_angel");
 const push_noti = require("../push");
 
@@ -41,7 +40,7 @@ angelRouter.get("/", async (req, res) => {
     con.release();
   } catch {
     con.release();
-    res.send("error-owner/angel");
+    res.send("error");
   }
 });
 
@@ -221,7 +220,7 @@ angelRouter.post("/call", async (req, res) => {
     con.release();
     console.log("catch");
     if (send_flag === false) {
-      res.send("error-owner/angel/call");
+      res.send("error");
     }
   }
 });
@@ -313,12 +312,12 @@ angelRouter.get("/info", async (req, res) => {
       dist: dist,
     };
 
-    console.log(result);
-    res.send(result);
+    // console.log(result);
     con.release();
+    res.send(result);
   } catch {
     con.release();
-    res.send("error-owner/angel/info");
+    res.send("error");
   }
 });
 
@@ -393,28 +392,6 @@ async function getJobIdByType(req, res) {
   } catch {
     res.send("error-angel/call-getJobIdByType");
   }
-}
-
-/* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00 00:00:00'형식으로 변환하여 리턴 */
-function masageDateToYearMonthDayHourMinSec(date_timestamp) {
-  let date = new Date(date_timestamp);
-  let hour = date.getHours().toString();
-  let min = date.getMinutes().toString();
-  let sec = date.getSeconds().toString();
-
-  if (hour.length === 1) hour = "0" + hour;
-  if (min.length === 1) min = "0" + min;
-  if (sec.length === 1) sec = "0" + sec;
-
-  return (
-    masageDateToYearMonthDay(date_timestamp) +
-    " " +
-    hour +
-    ":" +
-    min +
-    ":" +
-    sec
-  );
 }
 
 /* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00'형식으로 변환하여 리턴 */

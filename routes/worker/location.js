@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const locationRouter = Router();
-const mysql = require("mysql2/promise");
+const pool = require('../../function');
 
 const nodeGeocoder = require('node-geocoder');
 
@@ -11,7 +11,23 @@ const options = {
   };
 const geocoder = nodeGeocoder(options);
 
-const pool = require('../function');
+
+
+
+/* worker의 location 정보 send */
+locationRouter.post('/', async (req, res) => {
+  const con = await pool.getConnection(async conn => conn);
+  const sql = "SELECT `location` FROM workers WHERE email=?";
+  try {
+    const [result] = await con.query(sql, req.body['email']);
+    con.release();
+    res.send(result[0]['location']); 
+  } catch {
+    con.release();
+    res.send('error');
+  }
+});
+
 
 
 /* 주소 정보 전달 받아서 worker table update
@@ -117,19 +133,6 @@ const pool = require('../function');
 //   });
 
 
-/* worker의 location 정보 send */
-locationRouter.post('/', async (req, res) => {
-    const con = await pool.getConnection(async conn => conn);
-    const sql = "SELECT `location` FROM workers WHERE email=?";
-    try {
-      const [result] = await con.query(sql, req.body['email']);
-      con.release();
-      res.send(result[0]['location']); 
-    } catch {
-      con.release();
-      res.send('error');
-    }
-  });
 
 module.exports = locationRouter;
 

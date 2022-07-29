@@ -1,8 +1,6 @@
 const { Router } = require("express");
 const employmentRouter = Router();
-const mysql = require("mysql2/promise");
-
-const pool = require('../../function');
+const pool = require('../../../function');
 
 
 /* 사장님 최저시급 설정 페이지의 모집공고 작성 버튼 || 사장님 홈 페이지의 + 버튼 */
@@ -46,10 +44,15 @@ employmentRouter.post("/button", async (req, res, next) => {
 
 /* 3. store_job_lists 테이블에서 store_id로 FK_store_job_lists_jobs 모두 가져오기 */
 employmentRouter.use("/button", getJobIdByStoreId, async (req, res) => {
-  delete req.body["email"];
-  delete req.body["owner_id"];
-  delete req.body["store_id"];
-  res.send(req.body);
+  try{
+    delete req.body["email"];
+    delete req.body["owner_id"];
+    delete req.body["store_id"];
+    res.send(req.body);
+  }
+  catch{
+    res.send('error');
+  }
 });
 
 module.exports = employmentRouter;

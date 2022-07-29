@@ -2,7 +2,7 @@ const { Router } = require("express");
 const myWorkerRouter = Router();
 const mysql = require("mysql2/promise");
 
-const pool = require('../../function');
+const pool = require('../../../function');
 
 
 /* 사장님 홈 - 나의긱워커 */
@@ -13,32 +13,38 @@ myWorkerRouter.post("/", getStoreIdByOwnerId, async (req, res, next) => {
   console.log(req.body);
   const con = await pool.getConnection(async (conn) => conn);
 
-  /* worker_id를 모두 담은 배열 가져오기 */
-  let worker_ids = await getWorkerIdByStoreId(req.body["store_id"]);
-  console.log(worker_ids);
-  if (worker_ids === -1) {
+  try{
+    /* worker_id를 모두 담은 배열 가져오기 */
+    let worker_ids = await getWorkerIdByStoreId(req.body["store_id"]);
+    console.log(worker_ids);
+    if (worker_ids === -1) {
+      con.release();
+      res.send("empty");
+      return;
+    }
+    console.log("123", worker_ids.length);
+  
+    /* workers 테이블에서 worker_id에 해당하는 name 가져오기 */
+    const sql = `SELECT name FROM workers WHERE worker_id IN (${worker_ids})`;
+    console.log("sdfsdf");
+    const [result] = await con.query(sql);
+    console.log(result);
+    /* masage data */
+    let worker_names = new Array();
+    for (let i = 0; i < result.length; i++) {
+      worker_names.push(result[i]["name"]);
+    }
+  
+    let send_data = {
+      workers: worker_names,
+    };
     con.release();
-    res.send("empty");
-    return;
+    res.send(send_data);
   }
-  console.log("123", worker_ids.length);
-
-  /* workers 테이블에서 worker_id에 해당하는 name 가져오기 */
-  const sql = `SELECT name FROM workers WHERE worker_id IN (${worker_ids})`;
-  console.log("sdfsdf");
-  const [result] = await con.query(sql);
-  console.log(result);
-  /* masage data */
-  let worker_names = new Array();
-  for (let i = 0; i < result.length; i++) {
-    worker_names.push(result[i]["name"]);
+  catch{
+    con.release();
+    res.send('error');
   }
-
-  let send_data = {
-    workers: worker_names,
-  };
-  con.release();
-  res.send(send_data);
 });
 
 module.exports = myWorkerRouter;

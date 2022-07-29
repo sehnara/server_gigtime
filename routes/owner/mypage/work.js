@@ -2,7 +2,7 @@ const { Router } = require('express');
 const workRouter = Router();
 const mysql = require('mysql2/promise');
 
-const pool = require('../../function');
+const pool = require('../../../function');
 
 /* 사장님 홈 - 모집내역 */
 /* input { 'owner_id': 2 } */

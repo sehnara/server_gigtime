@@ -1,8 +1,6 @@
 const { Router } = require('express');
 const employmentRouter = Router();
-const mysql = require("mysql2/promise");
-
-const pool = require('../function');
+const pool = require('../../function');
 
 /* 
   input form
@@ -46,6 +44,7 @@ employmentRouter.use('/', async (req, res, next) => {
     catch {
         con.release();
         console.log('error 4');
+        res.send('error');
     }
 })
 
@@ -67,6 +66,7 @@ employmentRouter.use('/', async (req, res, next) => {
     catch {
         con.release();
         console.log('error 5');
+        res.send('error');
     }
   })
   
@@ -125,6 +125,7 @@ employmentRouter.use('/', async (req, res) => {
     catch {
         con.release();
         console.log('error 6');
+        res.send('error');
     }
 })
 

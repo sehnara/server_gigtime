@@ -1,7 +1,6 @@
 const { Router } = require("express");
 const mypageRouter = Router();
-const mysql = require("mysql2/promise");
-const pool = require("../function");
+const pool = require("../../function");
 
 /* 마이페이지 - 알바시간표 */
 /* input  { 'email': 'dngp93@gmail.com' }
@@ -43,32 +42,33 @@ const pool = require("../function");
 // orders, stores 테이블에서 필요한 정보만 추가로 JOIN
 mypageRouter.post("/work", async (req, res, next) => {
   const con = await pool.getConnection(async (conn) => conn);
-  const sql = `SELECT A.*, B.min_price, C.name, C.address, D.type FROM hourly_orders A 
+  try {
+    const sql = `SELECT A.*, B.min_price, C.name, C.address, D.type FROM hourly_orders A 
                   INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id
                   INNER JOIN stores C ON B.FK_orders_stores = C.store_id 
                   INNER JOIN jobs D ON B.FK_orders_jobs = D.job_id
                   WHERE A.FK_hourlyorders_workers='${req.body['worker_id']}'`
     // const sql = `SELECT * FROM hourly_orders WHERE status=0`
     const [result] = await con.query(sql);
-    try {
-      req.body['hourly_orders'] = result;
-        con.release();
-        next();
-    } catch {
-        con.release();
-        res.send('error');
-    }
-  })
+    req.body['hourly_orders'] = result;
+    con.release();
+    next();
+  } catch {
+    con.release();
+    res.send('error');
+  }
+})
   
-  /* 3. 출력 형태로 data masage */
-  mypageRouter.use('/work', async (req, res, next) => {
+/* 3. 출력 형태로 data masage */
+mypageRouter.use('/work', async (req, res, next) => {
     console.log(req.body);
     let send_data = new Array();
-  
     let len = req.body['hourly_orders'].length;
     let tmp;
     let check = {};
     let idx = 0;
+  try{
+    
     for (let i = 0; i < len; i++) {
       let key = new Array();
       tmp = req.body['hourly_orders'][i];
@@ -84,54 +84,58 @@ mypageRouter.post("/work", async (req, res, next) => {
         send_data.push(key);
         check[Object.assign(new Array(), key)] = idx;
         idx += 1; 
+      }
+    
+      /* send_data['key']에 key: value 데이터 삽입 */
+      send_data[check[key]].push(
+        // 'hour': masageDateToHour(tmp['start_time']),
+        // 'price': tmp['min_price'],
+        // 'id': tmp['hourlyorders_id']
+        masageDateToHour(tmp["start_time"]) + "," + tmp["min_price"].toString()
+      );
+    
+      // send_data[key].push({
+      //   'start_time': masageDateToHour(tmp['start_time']),
+      //   'price': tmp['min_price'],
+      //   'id': tmp['hourlyorders_id']
+      // })
+    
+      /* send_data['address']에 '가게이름':'가게주소' 삽입 */
+      // if (!send_data['address'].hasOwnProperty(tmp['name']))
+      //   send_data['address'][tmp['name']] = tmp['address'];
     }
-
-    /* send_data['key']에 key: value 데이터 삽입 */
-    send_data[check[key]].push(
-      // 'hour': masageDateToHour(tmp['start_time']),
-      // 'price': tmp['min_price'],
-      // 'id': tmp['hourlyorders_id']
-      masageDateToHour(tmp["start_time"]) + "," + tmp["min_price"].toString()
-    );
-
-    // send_data[key].push({
-    //   'start_time': masageDateToHour(tmp['start_time']),
-    //   'price': tmp['min_price'],
-    //   'id': tmp['hourlyorders_id']
-    // })
-
-    /* send_data['address']에 '가게이름':'가게주소' 삽입 */
-    // if (!send_data['address'].hasOwnProperty(tmp['name']))
-    //   send_data['address'][tmp['name']] = tmp['address'];
+    console.log(check);
+  
+    // /* key 별 시급 총합 계산 */
+    // for (let i = 0; i < send_data['key'].length; i++) {
+    //   let key = send_data['key'][i];
+    //   let total_price = 0;
+    
+    //   for (let j = 0; j < send_data[key].length; j++) {
+    //     total_price += send_data[key][j]['price'];
+    //   }
+    
+    //   /* key 끝에 시급 총합 붙이기 */
+    //   // '2022-08-20,커피커피,서빙,20510'
+    //   send_data['key'][i] += ','+total_price.toString();
+    // }
+  
+    console.log(send_data);
+    send_data.sort(function (a, b) {
+      let date_a = new Date(a[0]);
+      let date_b = new Date(b[0]);
+    
+      if (date_a < date_b) return -1;
+      if (date_a > date_b) return 1;
+      return 0;
+    });
+  
+    /* 결과 전송 */
+    res.send(send_data);
   }
-  console.log(check);
-
-  // /* key 별 시급 총합 계산 */
-  // for (let i = 0; i < send_data['key'].length; i++) {
-  //   let key = send_data['key'][i];
-  //   let total_price = 0;
-
-  //   for (let j = 0; j < send_data[key].length; j++) {
-  //     total_price += send_data[key][j]['price'];
-  //   }
-
-  //   /* key 끝에 시급 총합 붙이기 */
-  //   // '2022-08-20,커피커피,서빙,20510'
-  //   send_data['key'][i] += ','+total_price.toString();
-  // }
-
-  console.log(send_data);
-  send_data.sort(function (a, b) {
-    let date_a = new Date(a[0]);
-    let date_b = new Date(b[0]);
-
-    if (date_a < date_b) return -1;
-    if (date_a > date_b) return 1;
-    return 0;
-  });
-
-  /* 결과 전송 */
-  res.send(send_data);
+  catch{
+    res.send('error');
+  }
 });
 
 /* 마이페이지 - 합격한 곳 */

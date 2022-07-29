@@ -2,7 +2,7 @@ const { Router } = require('express');
 const suggestionRouter = Router();
 const mysql = require("mysql2/promise");
 
-const pool = require('../function');
+const pool = require('../../function');
 
 
 /* 최적의 알바 추천 */
@@ -74,7 +74,7 @@ suggestionRouter.post('/', async (req, res) => {
     }
     catch{
       con.release();
-      res.send('error-worker/suggestion');
+      res.send('error');
     }
   })
 
@@ -98,14 +98,14 @@ suggestionRouter.post('/', async (req, res) => {
     for (i of orders){
       tmp += `update hourly_orders SET FK_hourlyorders_workers=${req.body['worker_id']}, closing_time='${day}', status=1 WHERE hourlyorders_id=${i}; `
     }
-    console.log(tmp)
+    // console.log(tmp)
     const [result] = await con.query(tmp);
     con.release();
     res.send('success');    
   }
   catch{
     con.release();
-    res.send('error-worker/suggestion/submit');
+    res.send('error');
   }
 
 })

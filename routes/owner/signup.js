@@ -1,7 +1,6 @@
 const { Router } = require("express");
 const signupRouter = Router();
-const mysql = require("mysql2/promise");
-
+const pool = require('../../function');
 const nodeGeocoder = require("node-geocoder");
 /* 구글 map api */
 const options = {
@@ -10,7 +9,7 @@ const options = {
 };
 const geocoder = nodeGeocoder(options);
 
-const pool = require('../function');
+
 
  
 /* 사장님 사장님 최저시급 설정 페이지 */
@@ -88,7 +87,7 @@ signupRouter.post("/", getPos, async (req, res) => {
   } catch {
     console.log("error");
     con.release();
-    res.send("error-owner/signup");//
+    res.send("error");//
   }
 });
 

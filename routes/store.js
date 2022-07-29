@@ -10,7 +10,7 @@ const options = {
 };
 const geocoder = nodeGeocoder(options);
 
-const pool = require("./function");
+const pool = require("../function");
 
 /* 면접 가능한 매장 정보를 return (지정 거리 이내) 
   data form === 
@@ -53,7 +53,7 @@ storeerRouter.post("/list", async (req, res) => {
     }
   } catch {
     con.release();
-    res.send("error-store/list");
+    res.send("error");
   }
 });
 
@@ -95,17 +95,17 @@ storeerRouter.post("/address/update", getPos, async (req, res) => {
   const sql =
     "UPDATE stores SET address=?, latitude=?, longitude=? WHERE FK_stores_owners=?";
   try {
-    await con.query(sql, [
-      req.body["location"],
-      req.body["latitude"],
-      req.body["longitude"],
-      req.body["FK_stores_owners"],
-    ]);
-    con.release();
-    res.send("success");
+        await con.query(sql, [
+        req.body["location"],
+        req.body["latitude"],
+        req.body["longitude"],
+        req.body["FK_stores_owners"],
+        ]);
+        con.release();
+        res.send("success");
   } catch {
-    con.release();
-    res.send("error-store/address/update");
+        con.release();
+        res.send("error");
   }
 });
 

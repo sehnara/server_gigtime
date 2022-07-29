@@ -47,8 +47,8 @@ jobs:
           key: ${{secrets.PASSWORD}}
           username: ${{secrets.USERNAME}}
           script: |
-            ls
-            mkdir baro
+            ${{secrets.SCRIPTS}}
+          
   
       
       # Runs a set of commands using the runners shell

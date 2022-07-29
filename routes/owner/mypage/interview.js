@@ -64,28 +64,34 @@ interviewRouter.post("/result", async (req, res) => {
   const value = req.body["value"];
   console.log(interview_id, value);
   try {
-    msg = "update state";
-    if (value === "true") {
-      const sql = `update interviews set state = 5, result_flag = 1 where interview_id = ${interview_id};`;
-      const [result] = await con.query(sql);
-    } else {
-      const sql = `update interviews set state = 5, result_flag = 0 where interview_id = ${interview_id};`;
-      const [result] = await con.query(sql);
-    }
-    // const [result] = await con.query(sql);
-    // console.log('result: ',result);
-
     /* worker_id 찾고 */
     msg = "select worker_id";
     const sql_worker = `select FK_interviews_workers, FK_interviews_stores from interviews where interview_id = ${interview_id};`;
     const [worker] = await con.query(sql_worker);
 
+    msg = "update state";
+    if (value !== true) {
+        const sql = `update interviews set state = 5, result_flag = 0 where interview_id = ${interview_id};`;
+        const [result] = await con.query(sql);
+    } else {
+        // console.log('합격!!!');
+        const sql = `update interviews set state = 5, result_flag = 1 where interview_id = ${interview_id};`;
+        const [result] = await con.query(sql);
+        
+        // console.log('합격!!!', worker[0]["FK_interviews_workers"], worker[0]["FK_interviews_stores"]);
+        const sql_qual = `insert into qualifications (fk_qualifications_workers, FK_qualifications_stores) values(${worker[0]["FK_interviews_workers"]}, ${worker[0]["FK_interviews_stores"]});`;
+        const [qual] = await con.query(sql_qual);
+        
+        // console.log('합격!!!');
+    }
+    // const [result] = await con.query(sql);
+    // console.log('result: ',result);
+
+    
+
     msg = "select name";
     const sql_store = `select name from stores where store_id = ${worker[0]["FK_interviews_stores"]};`;
     const [store] = await con.query(sql_store);
-
-    const sql_qual = `insert into qualifications (fk_qualifications_workers, FK_qualifications_stores) values(${worker[0]["FK_interviews_workers"]}, ${worker[0]["FK_interviews_stores"]});`;
-    const [qual] = await con.qual(sql_qual);
 
     /* token 찾아서 push */
 

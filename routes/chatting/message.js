@@ -105,10 +105,52 @@ messageRouter.use('/save', async (req, res) => {
 /* 
     { "room_id": 6, "cursor": "null" } cursor는 chatting_id. 여기서부터 일정 개수 읽어오는 방식으로 구현해야 한다. null이면 처음부터
 */
-/*  */
-messageRouter.get('/loading', async (req, res) => {
+/* { 'room_id': 6, 'cursor': null, 'user_id': 20, 'user_type': 'owner' } */
+
+/* 1. 안 읽은 메시지가 몇 갠지 가져오기 */
+messageRouter.get('/loading', async (req, res, next) => {
+    const con = await pool.getConnection(async conn => conn);
+    console.log(req.query)
+
+    const sql = `SELECT not_read_chat 
+                 FROM room_participant_lists 
+                 WHERE FK_room_participant_lists_rooms='${req.query.room_id}' AND user_id='${req.query.user_id}' AND user_type='${req.query.user_type}' LIMIT 1`
+    const [result] = await con.query(sql);
+    req.query['not_read_chat'] = result[0]['not_read_chat']
+    console.log('/loading 1. 통과');
+    con.release();
+    next();
+})
+
+/* 2. chattings 테이블에서 not_read=0으로 update */
+messageRouter.use('/loading', async (req, res, next) => {
+    const con = await pool.getConnection(async conn => conn);
+    
+    const sql = `UPDATE chattings
+                 SET not_read=0
+                 WHERE FK_chattings_rooms='${req.query.room_id}' AND send_user_type!='${req.query.user_type}' AND not_read=1`
+    await con.query(sql);
+    console.log('/loading 2. 통과');
+    con.release();
+    next();
+})
+
+/* 3. room_participant_lists 테이블에서 not_read_chat=0으로 update */
+messageRouter.use('/loading', async (req, res, next) => {
+    const con = await pool.getConnection(async conn => conn);
+
+    const sql = `UPDATE room_participant_lists
+                 SET not_read_chat=0
+                 WHERE FK_room_participant_lists_rooms='${req.query.room_id}' AND user_id='${req.query.user_id}' AND user_type='${req.query.user_type}' LIMIT 1`
+    await con.query(sql);
+    console.log('/loading 3. 통과');
+    con.release();
+    next();
+})
+
+/* message client에 send */
+messageRouter.use('/loading', async (req, res) => {
     console.log(req.query.room_id);
-    console.log('ininin')
 
     const con = await pool.getConnection(async conn => conn);
     const sql = `
@@ -116,7 +158,7 @@ messageRouter.get('/loading', async (req, res) => {
     FROM chattings A
     INNER JOIN owners B ON A.send_user_id = B.owner_id
     INNER JOIN workers C ON A.send_user_id = C.worker_id
-    WHERE chatting_id<? AND FK_chattings_rooms=? ORDER BY chatting_id DESC LIMIT 10`
+    WHERE chatting_id<? AND FK_chattings_rooms=? ORDER BY chatting_id DESC LIMIT 100`
     
     let cursor = Number(req.query.cursor) || 9999999999;
     const [result] = await con.query(sql, [cursor, req.query.room_id]);

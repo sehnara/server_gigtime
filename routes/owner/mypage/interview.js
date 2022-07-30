@@ -87,7 +87,42 @@ interviewRouter.post("/result", async (req, res) => {
             // console.log('합격!!!', worker[0]["FK_interviews_workers"], worker[0]["FK_interviews_stores"]);
             const sql_qual = `insert into qualifications (fk_qualifications_workers, FK_qualifications_stores) values(${worker[0]["FK_interviews_workers"]}, ${worker[0]["FK_interviews_stores"]});`;
             const [qual] = await con.query(sql_qual);
+
+            /* create chatting room */
+            /* 1. interview_id로 worker_id 가져오기 */
+            console.log("/create 진입");
+            console.log(req.body);
+            const sql2 = `SELECT FK_interviews_workers AS worker_id FROM interviews WHERE interview_id=${req.body["interview_id"]}`;
+
+            const [result_room] = await con.query(sql2);
+            req.body["worker_id"] = result_room[0]["worker_id"];
+            console.log(result_room);
+
+            /* 2. room 테이블에 데이터 삽입 */
+            const sql3 = `INSERT INTO rooms SET identifier=?, last_chat=?, createdAt=?, updatedAt=?`;
+            let identifier =
+            req.body["owner_id"].toString() + "-" + req.body["worker_id"].toString();
+            req.body["identifier"] = identifier;
+            let date = masageDate.masageDateToYearMonthDayHourMinSec(new Date());
+            console.log(req.body);
+            await con.query(sql3, [identifier, "", date, date]);
             
+            /* 3. room_id 가져오기 */
+            const sql4 = `SELECT room_id
+                        FROM rooms 
+                        WHERE identifier=?`;
+            
+            const [result4] = await con.query(sql4, [req.body['identifier']])
+            req.body['room_id'] = result4[0]['room_id']
+            console.log('3. room_id 가져오기 통과 ', req.body)
+            
+            /* 4. room_participant_lists 테이블에 insert */
+            const sql5 = `INSERT INTO room_participant_lists
+                        SET FK_room_participant_lists_rooms=?, user_id=?, user_type=?, createdAt=?, updatedAt=?`;
+            await con.query(sql5, [req.body['room_id'], req.body['owner_id'], 'owner', date, date]);
+            await con.query(sql5, [req.body['room_id'], req.body['worker_id'], 'worker', date, date])
+            console.log('4단계까지 완료')
+
             // console.log('합격!!!');
         }
         // const [result] = await con.query(sql);
@@ -117,27 +152,6 @@ interviewRouter.post("/result", async (req, res) => {
         msg = "push_noti";
         push_noti(push_token, title, info);
 
-        /* create chatting room */
-
-        /* 1. interview_id로 worker_id 가져오기 */
-        console.log("/create 진입");
-        const sql = `SELECT FK_interviews_workers AS worker_id FROM interviews WHERE interview_id=${req.body["interview_id"]}`;
-
-        const [result_room] = await con.query(sql);
-        req.body["worker_id"] = result_room[0]["worker_id"];
-
-        /* 2. room 테이블에 데이터 삽입 */
-        const sql2 = `INSERT INTO rooms SET identifier=?, last_chat=?, createdAt=?, updatedAt=?`;
-        let identifier =
-        req.body["owner_id"].toString() + "-" + req.body["worker_id"].toString();
-        req.body["identifier"] = identifier;
-        let date = masageDate.masageDateToYearMonthDayHourMinSec(new Date());
-        await con.query(sql2, [identifier, "", date, date]);
-
-        // /* 3. room_id 리턴 (안해도 될듯) */
-        // const sql3 = `SELECT id AS room_id, identifier FROM rooms WHERE identifier=?`;
-        // await con.query(sql3, [req.body['identifier']])
-
         con.release();
         res.send("success");
     } catch {
@@ -148,40 +162,3 @@ interviewRouter.post("/result", async (req, res) => {
 });
 
 module.exports = interviewRouter;
-
-/************************ function *************************/
-
-// /* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00'형식으로 변환하여 리턴 */
-// function masageDateToYearMonthDay(date_timestamp) {
-//   let date = new Date(date_timestamp);
-//   let year = date.getFullYear().toString();
-//   let month = (date.getMonth() + 1).toString();
-//   let day = date.getDate().toString();
-
-//   if (month.length === 1) month = "0" + month;
-//   if (day.length === 1) day = "0" + day;
-
-//   return year + "-" + month + "-" + day;
-// }
-
-// /* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00 00:00:00'형식으로 변환하여 리턴 */
-// function masageDateToYearMonthDayHourMinSec(date_timestamp) {
-//   let date = new Date(date_timestamp);
-//   let hour = date.getHours().toString();
-//   let min = date.getMinutes().toString();
-//   let sec = date.getSeconds().toString();
-
-//   if (hour.length === 1) hour = "0" + hour;
-//   if (min.length === 1) min = "0" + min;
-//   if (sec.length === 1) sec = "0" + sec;
-
-//   return (
-//     masageDateToYearMonthDay(date_timestamp) +
-//     " " +
-//     hour +
-//     ":" +
-//     min +
-//     ":" +
-//     sec
-//   );
-// }

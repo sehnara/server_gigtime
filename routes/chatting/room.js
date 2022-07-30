@@ -31,19 +31,35 @@ roomRouter.use('/create', async (req, res, next) => {
     let identifier = req.body['owner_id'].toString() + '-' + req.body['worker_id'].toString()
     req.body['identifier'] = identifier;
     let date = masageDate.masageDateToYearMonthDayHourMinSec(new Date())
+    req.body['date'] = date;
     await con.query(sql, [identifier, '', date, date])
     con.release();
     next();
 })
 
-/* 3. room_id 리턴 (안해도 될듯) */
-roomRouter.use('/create', async (req, res) => {
+/* 3. room_id 가져오기 */
+roomRouter.use('/create', async (req, res, next) => {
     const con = await pool.getConnection(async conn => conn);
-    const sql = `SELECT id AS room_id, identifier FROM rooms WHERE identifier=?`;
+    const sql = `SELECT room_id
+                 FROM rooms 
+                 WHERE identifier=?`;
     
     const [result] = await con.query(sql, [req.body['identifier']])
+    req.body['room_id'] = result[0]['room_id']
+    console.log('3. room_id 가져오기 통과 ', req.body)
     con.release()
-    res.json(result)
+    next();
+})
+
+/* 4. room_participant_lists 테이블에 insert */
+roomRouter.use('/create', async (req, res) => {
+    const con = await pool.getConnection(async conn => conn);
+    const sql = `INSERT INTO room_participant_lists
+                 SET FK_room_participant_lists_rooms=?, user_id=?, user_type=?, createdAt=?, updatedAt=?`;
+    await con.query(sql, [req.body['room_id'], req.body['owner_id'], 'owner', req.body['date'], req.body['date']]);
+    con.release();
+    console.log('4단계까지 완료')
+    res.send('success');
 })
 
 /**************************

@@ -46,6 +46,7 @@ messageRouter.post('/save', async (req, res, next) => {
         sec = '0'+sec
     req.body['createdAt'] += (':'+sec);
     req.body['updatedAt'] = req.body['createdAt']
+    req.body['not_read'] = 1
 
     req.body['FK_chattings_rooms'] = req.body['room_id']
     delete req.body['room_id']
@@ -92,10 +93,8 @@ messageRouter.use('/save', async (req, res) => {
                   WHERE FK_room_participant_lists_rooms=?`;
     await con.query(sql3, [last_chatting_id[0]['chatting_id'], req.body['createdAt'], req.body['FK_chattings_rooms']]);
 
-
-
-
     con.release();
+    res.send('success');
 })
 
 /****************************

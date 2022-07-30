@@ -37,7 +37,6 @@ module.exports = messageRouter;
 */
 /* 1. 우선 chatting 테이블에 INSERT */
 messageRouter.post('/save', async (req, res, next) => {
-    console.log('123', req.body)
     const con = await pool.getConnection(async conn => conn);
     const sql = `INSERT INTO chattings SET ?`;
     let date = new Date();
@@ -56,13 +55,37 @@ messageRouter.post('/save', async (req, res, next) => {
 })
 
 /* 2. room 테이블의 last_chat, updatedAt 업데이트 */
-messageRouter.use('/save', async (req, res) => {
+messageRouter.use('/save', async (req, res, next) => {
     const con = await pool.getConnection(async conn => conn);
     const sql = `UPDATE rooms SET last_chat=?, updatedAt=? WHERE room_id=?`;
     console.log([req.body['message'], req.body['createdAt'], req.body['FK_chattings_rooms']])
     await con.query(sql, [req.body['message'], req.body['createdAt'], req.body['FK_chattings_rooms']]);
     con.release();
     res.send('success');
+    next();
+})
+
+/* 3. room_participant_lists 테이블의 not_read_chat, last_chatting_id, updatedAt 업데이트 */
+messageRouter.use('/save', async (req, res) => {
+    const con = await pool.getConnection(async conn => conn);
+    // 해당 room의 last_chatting_id 가져오기
+    const sql = `SELECT chatting_id 
+                 FROM chattings
+                 WHERE FK_chattings_rooms=? 
+                 order by chatting_id desc
+                 LIMIT 1`
+    const [last_chatting_id] = await con.query(sql, req.body['FK_chattings_rooms']);
+    console.log(last_chatting_id)
+    // console.log()
+    // const tmp = `SELECT * FROM room_participant_lists WHERE FK_room_participant_lists_rooms=?`
+    // const [result] = await con.query(tmp, [req.body['FK_chattings_rooms']])
+
+
+    const sql2 = `UPDATE room_participant_lists 
+                 SET not_read_chat=not_read_chat+1, last_chatting_id=?, updatedAt=?
+                 WHERE FK_room_participant_lists_rooms=?`;
+    await con.query(sql2, [last_chatting_id[0]['chatting_id'], req.body['createdAt'], req.body['FK_chattings_rooms']]);
+    con.release();
 })
 
 /****************************
@@ -98,7 +121,7 @@ messageRouter.get('/loading', async (req, res) => {
         delete result[i]['owner_name']
         delete result[i]['worker_name']
     }
-    
+    con.release();
     console.log(result)
     res.send(result);
 })
@@ -125,10 +148,50 @@ messageRouter.get('/loading/:room_id/:cursor', async (req, res) => {
         delete result[i]['owner_name']
         delete result[i]['worker_name']
     }
-    
+    con.release();
     res.send(result);
 })
 
+/* { 'room_id': 28, 'user_id': 20, 'user_type': 'owner' } */
+/* 1. 안 읽은 메시지가 몇 갠지 가져오기 */
+messageRouter.get('/read', async (req, res, next) => {
+    const con = await pool.getConnection(async conn => conn);
+    console.log(req.query)
+
+
+    const sql = `SELECT not_read_chat 
+                 FROM room_participant_lists 
+                 WHERE FK_room_participant_lists_rooms='${req.query.room_id}' AND user_id='${req.query.user_id}' AND user_type='${req.query.user_type}' LIMIT 1`
+    const [result] = await con.query(sql);
+    req.query['not_read_chat'] = result[0]['not_read_chat']
+    
+    con.release();
+    next();
+})
+
+/* 2. chattings 테이블에서 not_read=0으로 update */
+messageRouter.use('/read', async (req, res, next) => {
+    const con = await pool.getConnection(async conn => conn);
+    
+    const sql = `UPDATE chattings
+                 SET not_read=0
+                 WHERE FK_chattings_rooms='${req.query.room_id}' AND send_user_type!='${req.query.user_type}' AND not_read=1`
+    await con.query(sql);
+    con.release();
+    next();
+})
+
+/* room_participant_lists 테이블에서 not_read_chat=0으로 update */
+messageRouter.use('/read', async (req, res) => {
+    const con = await pool.getConnection(async conn => conn);
+
+    const sql = `UPDATE room_participant_lists
+                 SET not_read_chat=0
+                 WHERE FK_room_participant_lists_rooms='${req.query.room_id}' AND user_id='${req.query.user_id}' AND user_type='${req.query.user_type}' LIMIT 1`
+    await con.query(sql);
+    con.release();
+    res.send('success');
+})
 
 function masageDateToYearMonthDayHourMinSec(date_timestamp) {
     let date = new Date(date_timestamp);

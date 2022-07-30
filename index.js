@@ -37,7 +37,7 @@ const options = {
 };
 const geocoder = nodeGeocoder(options);
 
-const pool = require("./function");
+const pool = require("./util/function");
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());

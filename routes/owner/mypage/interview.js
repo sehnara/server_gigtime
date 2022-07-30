@@ -2,7 +2,8 @@ const { Router } = require("express");
 const interviewRouter = Router();
 const mysql = require("mysql2/promise");
 
-const pool = require("../../../function");
+const pool = require("../../../util/function");
+const masageDate = require("../../../util/masageDate");
 const push_noti = require("../../push");
 
 /* state = 1(입장대기)일 때  */
@@ -31,16 +32,18 @@ interviewRouter.post("/accept", async (req, res) => {
     console.log("accept");
     const interview_id = req.body["interview_id"];
     const value = req.body["value"];
-    console.log(interview_id, value);
+    // console.log(interview_id, value, typeof value);
     try {
         msg = "update state";
-        if (value === "true") {
+        if (value !== "true" && value !== true) {
             // 거절
+            // console.log('거절', value);
             const sql = `update interviews set state = 0, reject_flag = 1 where interview_id = ${interview_id};`;
             // const sql = `update interviews set state = 3, reject_flag = 1 where interview_id = ${interview_id};`;
             const [result] = await con.query(sql);
         } else {
             // 수락
+            // console.log('수락', value);
             const sql = `update interviews set state = 1, reject_flag = 0 where interview_id = ${interview_id};`;
             // const sql = `update interviews set state = 3, reject_flag = 0 where interview_id = ${interview_id};`;
             const [result] = await con.query(sql);
@@ -64,7 +67,7 @@ interviewRouter.post("/result", async (req, res) => {
   let msg = "";
   const interview_id = req.body["interview_id"];
   const value = req.body["value"];
-  console.log(interview_id, value);
+  console.log(interview_id, value, typeof value);
   try {
         /* worker_id 찾고 */
         msg = "select worker_id";
@@ -72,11 +75,12 @@ interviewRouter.post("/result", async (req, res) => {
         const [worker] = await con.query(sql_worker);
 
         msg = "update state";
-        if (value !== true) {
+        if (value !== "true" && value !== true) {
+            // console.log('불합격ㅠ', value);
             const sql = `update interviews set state = 5, result_flag = 0 where interview_id = ${interview_id};`;
             const [result] = await con.query(sql);
         } else {
-            // console.log('합격!!!');
+            console.log('합격!!!', value);
             const sql = `update interviews set state = 5, result_flag = 1 where interview_id = ${interview_id};`;
             const [result] = await con.query(sql);
             
@@ -127,7 +131,7 @@ interviewRouter.post("/result", async (req, res) => {
         let identifier =
         req.body["owner_id"].toString() + "-" + req.body["worker_id"].toString();
         req.body["identifier"] = identifier;
-        let date = masageDateToYearMonthDayHourMinSec(new Date());
+        let date = masageDate.masageDateToYearMonthDayHourMinSec(new Date());
         await con.query(sql2, [identifier, "", date, date]);
 
         // /* 3. room_id 리턴 (안해도 될듯) */
@@ -147,37 +151,37 @@ module.exports = interviewRouter;
 
 /************************ function *************************/
 
-/* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00'형식으로 변환하여 리턴 */
-function masageDateToYearMonthDay(date_timestamp) {
-  let date = new Date(date_timestamp);
-  let year = date.getFullYear().toString();
-  let month = (date.getMonth() + 1).toString();
-  let day = date.getDate().toString();
+// /* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00'형식으로 변환하여 리턴 */
+// function masageDateToYearMonthDay(date_timestamp) {
+//   let date = new Date(date_timestamp);
+//   let year = date.getFullYear().toString();
+//   let month = (date.getMonth() + 1).toString();
+//   let day = date.getDate().toString();
 
-  if (month.length === 1) month = "0" + month;
-  if (day.length === 1) day = "0" + day;
+//   if (month.length === 1) month = "0" + month;
+//   if (day.length === 1) day = "0" + day;
 
-  return year + "-" + month + "-" + day;
-}
+//   return year + "-" + month + "-" + day;
+// }
 
-/* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00 00:00:00'형식으로 변환하여 리턴 */
-function masageDateToYearMonthDayHourMinSec(date_timestamp) {
-  let date = new Date(date_timestamp);
-  let hour = date.getHours().toString();
-  let min = date.getMinutes().toString();
-  let sec = date.getSeconds().toString();
+// /* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00 00:00:00'형식으로 변환하여 리턴 */
+// function masageDateToYearMonthDayHourMinSec(date_timestamp) {
+//   let date = new Date(date_timestamp);
+//   let hour = date.getHours().toString();
+//   let min = date.getMinutes().toString();
+//   let sec = date.getSeconds().toString();
 
-  if (hour.length === 1) hour = "0" + hour;
-  if (min.length === 1) min = "0" + min;
-  if (sec.length === 1) sec = "0" + sec;
+//   if (hour.length === 1) hour = "0" + hour;
+//   if (min.length === 1) min = "0" + min;
+//   if (sec.length === 1) sec = "0" + sec;
 
-  return (
-    masageDateToYearMonthDay(date_timestamp) +
-    " " +
-    hour +
-    ":" +
-    min +
-    ":" +
-    sec
-  );
-}
+//   return (
+//     masageDateToYearMonthDay(date_timestamp) +
+//     " " +
+//     hour +
+//     ":" +
+//     min +
+//     ":" +
+//     sec
+//   );
+// }

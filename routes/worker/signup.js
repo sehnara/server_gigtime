@@ -9,7 +9,8 @@ const options = {
 };
 const geocoder = nodeGeocoder(options);
 
-const pool = require('../../function');
+const pool = require('../../util/function');
+const getDist = require("../../util/getDist");
 
 /* name, email 정보 전달 받아서 worker table에 insert 
   data form === 
@@ -21,10 +22,15 @@ const pool = require('../../function');
   } */
 
 /* 1. workers 테이블에 INSERT */
-signupRouter.post("/", getPos, async (req, res, next) => {
+signupRouter.post("/", async (req, res, next) => {
   // console.log("aaa");
   // console.log(req.body);
   const con = await pool.getConnection(async (conn) => conn);
+
+  const location = getDist.getPos(req.body['location']);
+  req.body['latitude'] = location[0];
+  req.body['longitude'] = location[1];
+
   const sql = "INSERT INTO workers SET ?";
   try{
     await con.query(sql, req.body);
@@ -56,15 +62,15 @@ module.exports = signupRouter;
 
 /************************ function *************************/
 
-/* 두 좌표 간 거리 구하기 */
-async function getPos(req, res, next) {
-  console.log("getpos123: ", req.body);
-  const regionLatLongResult = await geocoder.geocode(req.body["location"]);
-  console.log("???", regionLatLongResult);
-  const Lat = regionLatLongResult[0].latitude; //위도
-  const Long = regionLatLongResult[0].longitude; //경도
-  req.body["latitude"] = Lat;
-  req.body["longitude"] = Long;
-  console.log("end of getpos: ", req.body);
-  next();
-}
+// /* 두 좌표 간 거리 구하기 */
+// async function getPos(req, res, next) {
+//   console.log("getpos123: ", req.body);
+//   const regionLatLongResult = await geocoder.geocode(req.body["location"]);
+//   console.log("???", regionLatLongResult);
+//   const Lat = regionLatLongResult[0].latitude; //위도
+//   const Long = regionLatLongResult[0].longitude; //경도
+//   req.body["latitude"] = Lat;
+//   req.body["longitude"] = Long;
+//   console.log("end of getpos: ", req.body);
+//   next();
+// }

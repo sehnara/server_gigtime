@@ -1,9 +1,10 @@
 const { Router } = require("express");
 const showRouter = Router();
-const pool = require("../../function");
+const pool = require("../../util/function");
 
 let util = require("util");
 const { request } = require("http");
+const getDist = require("../../util/getDist");
 
 /* 알바 모집 정보 return (지정 거리 이내)
    data form === 
@@ -107,7 +108,7 @@ showRouter.use("/hourly_orders2", async (req, res, next) => {
   let worker_longitude = req.body["longitude"];
 
   for (let i = 0; i < result.length; i++) {
-    let tmp = getDistance(
+    let tmp = await getDist.getDistance(
       worker_latitude,
       worker_longitude,
       result[i]["latitude"],
@@ -205,7 +206,7 @@ function masage_data(latitude, longitude, range, data) {
 
     /* 가게 이름이 없으면 새로 만들기 */
     if (!check.hasOwnProperty(d["name"])) {
-      let distance = getDistance(
+      let distance = getDist.getDistance(
         latitude,
         longitude,
         d["latitude"],
@@ -288,27 +289,27 @@ function masage_data(latitude, longitude, range, data) {
   return databox;
 }
 
-/* 두 개의 좌표 간 거리 구하기 */
-function getDistance(lat1, lon1, lat2, lon2) {
-  if (lat1 == lat2 && lon1 == lon2) return 0;
+// /* 두 개의 좌표 간 거리 구하기 */
+// function getDistance(lat1, lon1, lat2, lon2) {
+//   if (lat1 == lat2 && lon1 == lon2) return 0;
 
-  let radLat1 = (Math.PI * lat1) / 180;
-  let radLat2 = (Math.PI * lat2) / 180;
+//   let radLat1 = (Math.PI * lat1) / 180;
+//   let radLat2 = (Math.PI * lat2) / 180;
 
-  let theta = lon1 - lon2;
-  let radTheta = (Math.PI * theta) / 180;
-  let dist =
-    Math.sin(radLat1) * Math.sin(radLat2) +
-    Math.cos(radLat1) * Math.cos(radLat2) * Math.cos(radTheta);
+//   let theta = lon1 - lon2;
+//   let radTheta = (Math.PI * theta) / 180;
+//   let dist =
+//     Math.sin(radLat1) * Math.sin(radLat2) +
+//     Math.cos(radLat1) * Math.cos(radLat2) * Math.cos(radTheta);
 
-  if (dist > 1) dist = 1;
+//   if (dist > 1) dist = 1;
 
-  dist = Math.acos(dist);
-  dist = (dist * 180) / Math.PI;
-  dist = dist * 60 * 1.1515 * 1.609344 * 1000;
+//   dist = Math.acos(dist);
+//   dist = (dist * 180) / Math.PI;
+//   dist = dist * 60 * 1.1515 * 1.609344 * 1000;
 
-  if (dist < 100) dist = Math.round(dist / 10) * 10;
-  else dist = Math.round(dist / 100) * 100;
+//   if (dist < 100) dist = Math.round(dist / 10) * 10;
+//   else dist = Math.round(dist / 100) * 100;
 
-  return dist;
-}
+//   return dist;
+// }

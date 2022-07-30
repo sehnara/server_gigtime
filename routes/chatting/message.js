@@ -1,9 +1,9 @@
 const { Router } = require('express');
 const messageRouter = Router();
 const mysql = require("mysql2/promise");
-const { getConnection } = require('../../function');
+const { getConnection } = require('../../util/function');
 
-const pool = require('../../function');
+const pool = require('../../util/function');
 
 const express = require('express')
 const app = express();

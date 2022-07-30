@@ -9,7 +9,7 @@ const ownerMypageRouter = require('./owner/mypage');
 const angelRouter = require('./owner/angel');
 const qrCodeRouter = require('./owner/qrCode');
 
-const pool = require('../function');
+const pool = require('../util/function');
 
 
 ownerRouter.use('/signup', signupRouter);

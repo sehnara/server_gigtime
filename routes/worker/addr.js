@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const addrRouter = Router();
-const pool = require('../../function');
+const pool = require('../../util/function');
 
   
 addrRouter.post("/range", async (req, res) => {

@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const reserveRouter = Router();
-const pool = require("../function");
+const pool = require("../util/function");
 
 // order_id : 1
 reserveRouter.post("/load_store", async (req, res) => {

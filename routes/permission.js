@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const permissionRouter = Router();
-const pool = require('../function');
+const pool = require('../util/function');
 
 /*
   data form === 

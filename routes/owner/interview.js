@@ -2,7 +2,7 @@ const { Router } = require('express');
 const interviewRouter = Router();
 const mysql = require('mysql2/promise');
 
-const pool = require('../../function');
+const pool = require('../../util/function');
 
 interviewRouter.post('/', async (req, res) => {
     //console.log(req.body);

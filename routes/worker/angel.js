@@ -1,7 +1,8 @@
 const { Router } = require('express');
 const angelRouter = Router();
 
-const pool = require('../../function');
+const pool = require('../../util/function');
+const getDist = require('../../util/getDist');
 const push_noti = require('../push');
 // const push_angel = require('../');
 // const stop_call = require('../owner/angel');
@@ -54,7 +55,7 @@ angelRouter.get('/info', async (req, res) => {
       console.log('type: ', type);
 
       /* 3. 거리계산 해서 res */
-      let dist = getDistance(store_info[0]['latitude'], store_info[0]['longitude'], worker_info[0]['latitude'], worker_info[0]['longitude']);
+      let dist = getDist.getDistance(store_info[0]['latitude'], store_info[0]['longitude'], worker_info[0]['latitude'], worker_info[0]['longitude']);
   
       let result = {
         'store_name': store_info[0]['name'],
@@ -159,28 +160,28 @@ module.exports = angelRouter;
 
 /************************ function *************************/
 
-  /* 두 개의 좌표 간 거리 구하기 */
-function getDistance(lat1, lon1, lat2, lon2) {
-    if ((lat1 == lat2) && (lon1 == lon2)) return 0;
+//   /* 두 개의 좌표 간 거리 구하기 */
+// function getDistance(lat1, lon1, lat2, lon2) {
+//     if ((lat1 == lat2) && (lon1 == lon2)) return 0;
   
-    let radLat1 = Math.PI * lat1 / 180;
-    let radLat2 = Math.PI * lat2 / 180;
+//     let radLat1 = Math.PI * lat1 / 180;
+//     let radLat2 = Math.PI * lat2 / 180;
   
-    let theta = lon1 - lon2;
-    let radTheta = Math.PI * theta / 180;
-    let dist = Math.sin(radLat1) * Math.sin(radLat2) + Math.cos(radLat1) * Math.cos(radLat2) * Math.cos(radTheta);
+//     let theta = lon1 - lon2;
+//     let radTheta = Math.PI * theta / 180;
+//     let dist = Math.sin(radLat1) * Math.sin(radLat2) + Math.cos(radLat1) * Math.cos(radLat2) * Math.cos(radTheta);
   
-    if (dist > 1) dist = 1;
+//     if (dist > 1) dist = 1;
     
-    dist = Math.acos(dist);
-    dist = dist * 180 / Math.PI;
-    dist = dist * 60 * 1.1515 * 1.609344 * 1000;
+//     dist = Math.acos(dist);
+//     dist = dist * 180 / Math.PI;
+//     dist = dist * 60 * 1.1515 * 1.609344 * 1000;
   
-    if (dist < 100) dist = Math.round(dist / 10) * 10;
-    else dist = Math.round(dist / 100) * 100;
+//     if (dist < 100) dist = Math.round(dist / 10) * 10;
+//     else dist = Math.round(dist / 100) * 100;
     
-    return dist;
-}
+//     return dist;
+// }
 
 
 

@@ -1,8 +1,9 @@
 const { Router } = require('express');
 const locationRouter = Router();
-const pool = require('../../function');
+const pool = require('../../util/function');
 
 const nodeGeocoder = require('node-geocoder');
+const getDist = require('../../util/getDist');
 
 /* 구글 map api */
 const options = {
@@ -36,10 +37,14 @@ locationRouter.post('/', async (req, res) => {
     'email': 'dngp93@gmail.com', 
     'location': '서울시 관악구 성현동'
   } */
-  locationRouter.post('/update', getPos, async (req, res) => {
+  locationRouter.post('/update', async (req, res) => {
     const con = await pool.getConnection(async conn => conn);
-    const sql = "UPDATE workers SET location=?, latitude=?, longitude=? WHERE email=?";
     try {
+      const location = await getDist.getPos(req.body['location']);
+      // location => [latitude, longitude];
+      req.body['latitude'] = location[0];
+      req.body['longitude'] = location[1];
+      const sql = "UPDATE workers SET location=?, latitude=?, longitude=? WHERE email=?";
       await con.query(sql, [req.body['location'], req.body['latitude'], req.body['longitude'], req.body['email']])
       con.release();
       res.send('success');
@@ -138,12 +143,12 @@ module.exports = locationRouter;
 
 /************************ function *************************/
 
-/* 두 좌표 간 거리 구하기 */
-async function getPos(req, res, next) {
-  const regionLatLongResult = await geocoder.geocode(req.body['location']);
-  const Lat = regionLatLongResult[0].latitude; //위도
-  const Long =  regionLatLongResult[0].longitude; //경도
-  req.body['latitude'] = Lat;
-  req.body['longitude'] = Long;
-  next();
-}
+// /* 두 좌표 간 거리 구하기 */
+// async function getPos(req, res, next) {
+//   const regionLatLongResult = await geocoder.geocode(req.body['location']);
+//   const Lat = regionLatLongResult[0].latitude; //위도
+//   const Long =  regionLatLongResult[0].longitude; //경도
+//   req.body['latitude'] = Lat;
+//   req.body['longitude'] = Long;
+//   next();
+// }

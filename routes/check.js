@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const checkRouter = Router();
-const pool = require('../function');
+const pool = require('../util/function');
 
 
 /* owners 테이블 체크 */

@@ -1,6 +1,5 @@
 const { Router } = require('express');
 const ownerMypageRouter = Router();
-const mysql = require('mysql2/promise');
 
 const workRouter = require('./mypage/work');
 const myWorkerRouter = require('./mypage/myWorker');
@@ -8,7 +7,7 @@ const interviewRouter = require('./mypage/interview');
 const employmentRouter = require('./mypage/employment');
 const imageUploadRouter = require('./mypage/imageUpload');
 
-const pool = require('../../function');
+const pool = require('../../util/function');
 
 ownerMypageRouter.post('/', async (req, res) => {
     const con = await pool.getConnection(async (conn) => conn);

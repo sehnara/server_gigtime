@@ -1,6 +1,7 @@
 const { Router } = require("express");
 const mypageRouter = Router();
-const pool = require("../../function");
+const pool = require("../../util/function");
+const masageDate = require("../../util/masageDate");
 
 /* 마이페이지 - 알바시간표 */
 /* input  { 'email': 'dngp93@gmail.com' }
@@ -72,7 +73,7 @@ mypageRouter.use('/work', async (req, res, next) => {
     for (let i = 0; i < len; i++) {
       let key = new Array();
       tmp = req.body['hourly_orders'][i];
-      key.push(masageDateToYearMonthDay(tmp['work_date']));
+      key.push(masageDate.masageDateToYearMonthDay(tmp['work_date']));
       key.push(tmp['name']);
       key.push(tmp['type']);
       key.push(tmp['address']);
@@ -91,7 +92,7 @@ mypageRouter.use('/work', async (req, res, next) => {
         // 'hour': masageDateToHour(tmp['start_time']),
         // 'price': tmp['min_price'],
         // 'id': tmp['hourlyorders_id']
-        masageDateToHour(tmp["start_time"]) + "," + tmp["min_price"].toString()
+        masageDate.masageDateToHour(tmp["start_time"]) + "," + tmp["min_price"].toString()
       );
     
       // send_data[key].push({
@@ -144,52 +145,66 @@ mypageRouter.use('/work', async (req, res, next) => {
 /* 1. qualifications 테이블에서 worker_id로 FK_qualifications_stores 가져오기 */
 mypageRouter.post("/myStore", async (req, res, next) => {
   console.log(req.body);
-  const con = await pool.getConnection(async (conn) => conn);
-  const sql = `SELECT FK_qualifications_stores AS store_id FROM qualifications 
-                  WHERE FK_qualifications_workers='${req.body["worker_id"]}'`;
-  const [result] = await con.query(sql);
-  let store_ids = Array();
-  for (let i = 0; i < result.length; i++) {
-    store_ids.push(result[i]["store_id"]);
-  }
 
-  req.body["store_ids"] = store_ids;
-  con.release();
-  next(); 
+  try{
+    const con = await pool.getConnection(async (conn) => conn);
+    const sql = `SELECT FK_qualifications_stores AS store_id FROM qualifications 
+                    WHERE FK_qualifications_workers='${req.body["worker_id"]}'`;
+    const [result] = await con.query(sql);
+    let store_ids = Array();
+    for (let i = 0; i < result.length; i++) {
+      store_ids.push(result[i]["store_id"]);
+    }
+  
+    req.body["store_ids"] = store_ids;
+    con.release();
+    next(); 
+  }
+  catch{
+    con.release();
+    res.send('error');
+  }
 });
 
 /* 2. stores 테이블에서 store_id에 해당하는 name, address 가져오기 */
 mypageRouter.use("/myStore", async (req, res) => {
   const con = await pool.getConnection(async (conn) => conn);
-  const sql = `SELECT store_id, name, address, background_image 
-                 FROM stores 
-                 WHERE store_id IN (${req.body["store_ids"]})`;
-  const [result] = await con.query(sql);
 
-  /* 3. store_job_lists 테이블에서 store_id에 해당하는 job_id 가져오기 */
-  const sql2 = `SELECT A.FK_store_job_lists_stores AS store_id, B.type
-                  FROM store_job_lists A
-                  INNER JOIN jobs B ON A.FK_store_job_lists_jobs = B.job_id
-                  WHERE FK_store_job_lists_stores IN (${req.body["store_ids"]})`;
-  const [result2] = await con.query(sql2);
-
-  /* 4. masage */
-  let types = {};
-  let store_id;
-  for (let i = 0; i < result2.length; i++) {
-    store_id = result2[i]["store_id"];
-    if (!types.hasOwnProperty(store_id)) types[store_id] = Array();
-    types[store_id].push(result2[i]["type"]);
+  try{
+    const sql = `SELECT store_id, name, address, background_image 
+                   FROM stores 
+                   WHERE store_id IN (${req.body["store_ids"]})`;
+    const [result] = await con.query(sql);
+  
+    /* 3. store_job_lists 테이블에서 store_id에 해당하는 job_id 가져오기 */
+    const sql2 = `SELECT A.FK_store_job_lists_stores AS store_id, B.type
+                    FROM store_job_lists A
+                    INNER JOIN jobs B ON A.FK_store_job_lists_jobs = B.job_id
+                    WHERE FK_store_job_lists_stores IN (${req.body["store_ids"]})`;
+    const [result2] = await con.query(sql2);
+  
+    /* 4. masage */
+    let types = {};
+    let store_id;
+    for (let i = 0; i < result2.length; i++) {
+      store_id = result2[i]["store_id"];
+      if (!types.hasOwnProperty(store_id)) types[store_id] = Array();
+      types[store_id].push(result2[i]["type"]);
+    }
+  
+    for (let i = 0; i < result.length; i++) {
+      result[i]["types"] = types[result[i]["store_id"]];
+    }
+  
+    /* result에 최종 send 형태로 담았음 */
+    console.log(result);
+    con.release();
+    res.send(result);
   }
-
-  for (let i = 0; i < result.length; i++) {
-    result[i]["types"] = types[result[i]["store_id"]];
+  catch{
+    con.release();
+    res.send('error');
   }
-
-  /* result에 최종 send 형태로 담았음 */
-  console.log(result);
-  con.release();
-  res.send(result);
 });
 
 // 마이페이지 - 면접시간표
@@ -197,93 +212,100 @@ mypageRouter.use("/myStore", async (req, res) => {
 mypageRouter.post('/interview', async (req, res) => {
     console.log('mypage:', req.body)
     const con = await pool.getConnection(async conn => conn);
-    worker_id = req.body['worker_id'];
-    cards = [];
-    // console.log(worker_id);
-    const sql = `SELECT a.interview_id, a.FK_interviews_stores, a.interview_date, a.FK_interviews_interview_times, 
-                      a.reject_flag, a.result_flag, a.link, a.state, b.name, b.address, c.time
-                      From interviews as a
-                      inner join stores as b on a.FK_interviews_stores = b.store_id
-                      inner join interview_times as c on a.FK_interviews_interview_times = c.interview_time_id 
-                      where FK_interviews_workers = ${worker_id} and a.reject_flag=0 and a.state>0 order by state, interview_date, time;`;
-  const [result] = await con.query(sql);
-  n = result.length;
-  pre_state = 0;
 
-  const worker_sql = `SELECT name FROM workers WHERE worker_id = ${worker_id};`;
-  const [result_worker] = await con.query(worker_sql);
-  worker_name = result_worker[0]["name"];
-  console.log(worker_name);
-  for (let i = 0; i < n; i++) {
-    store_id = result[i]["FK_interviews_stores"];
-
-    const type_sql = `SELECT type FROM store_job_lists JOIN jobs 
-      ON store_job_lists.FK_store_job_lists_jobs = jobs.job_id 
-      WHERE store_job_lists.FK_store_job_lists_stores = ${store_id};`;
-    const [result_type] = await con.query(type_sql);
-
-    date = new Date(result[i]["interview_date"]);
-    interview_date = masageDateToYearMonthDay(date);
-    interview_time = result[i]["time"];
-    reject_flag = result[i]["reject_flag"];
-    result_flag = result[i]["result_flag"];
-    link = result[i]["link"];
-    state = result[i]["state"];
-    interview_id = result[i]["interview_id"];
-    store_name = result[i]["name"];
-    store_address = result[i]["address"];
-    store_type = result_type.map((result_type) => result_type["type"]);
-
-    card = {
-      interview_date: interview_date,
-      interview_time: interview_time,
-      reject_flag: reject_flag,
-      result_flag: result_flag,
-      link: link,
-      state: state,
-      interview_id: interview_id,
-      store_name: store_name,
-      store_address: store_address,
-      store_type: store_type,
-    };
-    if (cards) {
-      cards.push(card);
-    } else {
-      cards = [card];
+    try{
+      worker_id = req.body['worker_id'];
+      cards = [];
+      // console.log(worker_id);
+      const sql = `SELECT a.interview_id, a.FK_interviews_stores, a.interview_date, a.FK_interviews_interview_times, 
+                        a.reject_flag, a.result_flag, a.link, a.state, b.name, b.address, c.time
+                        From interviews as a
+                        inner join stores as b on a.FK_interviews_stores = b.store_id
+                        inner join interview_times as c on a.FK_interviews_interview_times = c.interview_time_id 
+                        where FK_interviews_workers = ${worker_id} and a.reject_flag=0 and a.state>0 order by state, interview_date, time;`;
+    const [result] = await con.query(sql);
+    n = result.length;
+    pre_state = 0;
+  
+    const worker_sql = `SELECT name FROM workers WHERE worker_id = ${worker_id};`;
+    const [result_worker] = await con.query(worker_sql);
+    worker_name = result_worker[0]["name"];
+    console.log(worker_name);
+    for (let i = 0; i < n; i++) {
+      store_id = result[i]["FK_interviews_stores"];
+  
+      const type_sql = `SELECT type FROM store_job_lists JOIN jobs 
+        ON store_job_lists.FK_store_job_lists_jobs = jobs.job_id 
+        WHERE store_job_lists.FK_store_job_lists_stores = ${store_id};`;
+      const [result_type] = await con.query(type_sql);
+  
+      date = new Date(result[i]["interview_date"]);
+      interview_date = masageDate.masageDateToYearMonthDay(date);
+      interview_time = result[i]["time"];
+      reject_flag = result[i]["reject_flag"];
+      result_flag = result[i]["result_flag"];
+      link = result[i]["link"];
+      state = result[i]["state"];
+      interview_id = result[i]["interview_id"];
+      store_name = result[i]["name"];
+      store_address = result[i]["address"];
+      store_type = result_type.map((result_type) => result_type["type"]);
+  
+      card = {
+        interview_date: interview_date,
+        interview_time: interview_time,
+        reject_flag: reject_flag,
+        result_flag: result_flag,
+        link: link,
+        state: state,
+        interview_id: interview_id,
+        store_name: store_name,
+        store_address: store_address,
+        store_type: store_type,
+      };
+      if (cards) {
+        cards.push(card);
+      } else {
+        cards = [card];
+      }
     }
+    let response = {
+      name: worker_name,
+      result: cards,
+    };
+    // console.log(response);
+    con.release();
+    console.log(response);
+    res.send(response);
   }
-  let response = {
-    name: worker_name,
-    result: cards,
-  };
-  // console.log(response);
-  con.release();
-  console.log(response);
-  res.send(response);
+  catch{
+    con.release();
+    res.send('error');
+  }
 });
 
 module.exports = mypageRouter;
 
 /************************ function *************************/
 
-/* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00'형식으로 변환하여 리턴 */
-function masageDateToYearMonthDay(date_timestamp) {
-  let date = new Date(date_timestamp);
-  let year = date.getFullYear().toString();
-  let month = (date.getMonth() + 1).toString();
-  let day = date.getDate().toString();
+// /* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00'형식으로 변환하여 리턴 */
+// function masageDateToYearMonthDay(date_timestamp) {
+//   let date = new Date(date_timestamp);
+//   let year = date.getFullYear().toString();
+//   let month = (date.getMonth() + 1).toString();
+//   let day = date.getDate().toString();
 
-  if (month.length === 1) month = "0" + month;
-  if (day.length === 1) day = "0" + day;
+//   if (month.length === 1) month = "0" + month;
+//   if (day.length === 1) day = "0" + day;
 
-  return year + "-" + month + "-" + day;
-}
+//   return year + "-" + month + "-" + day;
+// }
 
-/* '0000:00:00 ??:00:00.000Z' 형식을 받아서 '??:00' return */
-function masageDateToHour(timestamp) {
-  timestamp = new Date(timestamp);
-  let hour = timestamp.getHours().toString();
-  if (hour.length === 1) hour = "0" + hour;
+// /* '0000:00:00 ??:00:00.000Z' 형식을 받아서 '??:00' return */
+// function masageDateToHour(timestamp) {
+//   timestamp = new Date(timestamp);
+//   let hour = timestamp.getHours().toString();
+//   if (hour.length === 1) hour = "0" + hour;
 
-  return hour + ":00";
-}
+//   return hour + ":00";
+// }

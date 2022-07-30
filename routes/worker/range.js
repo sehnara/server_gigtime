@@ -1,14 +1,6 @@
 const { Router } = require('express');
 const rangeRouter = Router();
-const pool = require('../../function');
-const nodeGeocoder = require('node-geocoder');
-
-/* 구글 map api */
-const options = {
-    provider: 'google',
-    apiKey: 'AIzaSyAHZxHAkDSHoI-lJDCg5YfO7bLCFiRBpaU' // 요놈 넣어만 주면 될듯?
-  };
-const geocoder = nodeGeocoder(options);
+const pool = require('../../util/function');
 
 
 /* worker의 range 정보 send */

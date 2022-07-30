@@ -1,6 +1,9 @@
 const { Router } = require("express");
 const angelRouter = Router();
-const pool = require("../../function");
+const pool = require("../../util/function");
+const getStore = require("../../util/getStore");
+const getJob = require("../../util/getJob");
+const getDist = require("../../util/getDist");
 const push_angel = require("../push_angel");
 const push_noti = require("../push");
 
@@ -11,7 +14,7 @@ const push_noti = require("../push");
 */
 angelRouter.get("/", async (req, res) => {
   const con = await pool.getConnection(async (conn) => conn);
-
+  // console.log('angel start 1',req.body, '2', req.params, '3', req.query);
   try {
     const owner_id = req.query["owner_id"];
 
@@ -61,8 +64,8 @@ angelRouter.post("/call", async (req, res) => {
   let send_msg = "";
   try {
     /* 1. store_id, job_id 가져오고 */
-    const store_id = await getStoreIdByOwnerId(req, res);
-    const job_id = await getJobIdByType(req, res);
+    const store_id = await getStore.getStoreIdByOwnerId(req.body['owner_id']);
+    const job_id = await getJob. getJobIdByType(req.body['type']);
 
     // const store_id = req.body['store_id'];
     // const job_id = req.body['job_id'];
@@ -151,7 +154,7 @@ angelRouter.post("/call", async (req, res) => {
     const [workers] = await con.query(sql_qualified);
     let push_workers = { range1: [], range2: [] };
     for (let worker of workers) {
-      dist = getDistance(
+      dist = await getDist.getDistance(
         worker["latitude"],
         worker["longitude"],
         store_lat,
@@ -225,37 +228,6 @@ angelRouter.post("/call", async (req, res) => {
   }
 });
 
-async function stop_call(id) {
-  console.log("stop_call", id);
-  const con = await pool.getConnection(async (conn) => conn);
-
-  const sql = `select FK_angels_stores, status from angels where angel_id = ${id};`;
-  const [angel_info] = await con.query(sql);
-  // console.log('status: ',angel_info[0]['status']);
-  if (angel_info[0]["status"] === 0) {
-    const sql_status = `update angels set status = 2 where angel_id = ${id};`;
-    const [result_status] = await con.query(sql_status);
-
-    /* owner_id 찾아서 push */
-
-    const sql_token = `select FK_permissions_owners, token from permissions 
-    where FK_permissions_owners in (select FK_stores_owners from stores where store_id = ${angel_info[0]["FK_angels_stores"]});`;
-    const [token] = await con.query(sql_token);
-
-    let push_token = token[0]["token"];
-    console.log(push_token);
-    let title = `알바천사 결과`;
-    let info = {
-      result: "fail",
-    };
-
-    push_noti(push_token, title, info);
-    console.log("stopped");
-  }
-
-  return; // 필요함?
-}
-
 /* 
   input = {
     'angel_id' : 1
@@ -294,7 +266,7 @@ angelRouter.get("/info", async (req, res) => {
     let type = job[0]["type"];
 
     /* 3. 거리계산 해서 res */
-    let dist = getDistance(
+    let dist = getDist.getDistance(
       store_info[0]["latitude"],
       store_info[0]["longitude"],
       worker_info[0]["latitude"],
@@ -312,7 +284,7 @@ angelRouter.get("/info", async (req, res) => {
       dist: dist,
     };
 
-    // console.log(result);
+    // console.log('angel_result!!!!!', result);
     con.release();
     res.send(result);
   } catch {
@@ -326,108 +298,33 @@ module.exports = angelRouter;
 
 /************************ function *************************/
 
-// async function getStoreIdByOwnerId (req, res, next) {
-//     console.log(req.body)
-//     const con = await pool.getConnection(async conn => conn);
-
-//     try {
-//       const sql = "SELECT store_id FROM stores WHERE FK_stores_owners=?";
-//       const [result] = await con.query(sql, req.body['owner_id']);
-//       console.log(result);
-//       req.body['store_id'] = result[0]['store_id'];
-//       con.release();
-//       next();
-//     }
-//     catch {
-//       console.log('error')
-//       res.send('error');
-//     }
-//   }
-
-// /* type으로 jobs 테이블에서 job_id 가져오기 */
-// async function getJobIdByType(req, res, next) {
-//     const con = await pool.getConnection(async conn => conn);
-
-//     try {
-//       const sql = "SELECT job_id FROM jobs WHERE type=?";
-//       const [result] = await con.query(sql, req.body['type']);
-//       console.log(result);
-//       req.body['job_id'] = result[0]['job_id'];
-//       con.release();
-//       next();
-//     }
-//     catch {
-//       res.send('error');
-//     }
-//   }
-
-/* owner_id로 stores 테이블에서 store id 가져오기 */
-async function getStoreIdByOwnerId(req, res) {
+async function stop_call(id) {
+  console.log("stop_call", id);
   const con = await pool.getConnection(async (conn) => conn);
 
-  try {
-    const sql = "SELECT store_id FROM stores WHERE FK_stores_owners=?";
-    const [result] = await con.query(sql, req.body["owner_id"]);
-    con.release();
-    const store_id = result[0]["store_id"];
-    return store_id;
-    //   next();
-  } catch {
-    res.send("error-angel/call-getStoreIdByOwnerId");
+  const sql = `select FK_angels_stores, status from angels where angel_id = ${id};`;
+  const [angel_info] = await con.query(sql);
+  // console.log('status: ',angel_info[0]['status']);
+  if (angel_info[0]["status"] === 0) {
+    const sql_status = `update angels set status = 2 where angel_id = ${id};`;
+    const [result_status] = await con.query(sql_status);
+
+    /* owner_id 찾아서 push */
+
+    const sql_token = `select FK_permissions_owners, token from permissions 
+    where FK_permissions_owners in (select FK_stores_owners from stores where store_id = ${angel_info[0]["FK_angels_stores"]});`;
+    const [token] = await con.query(sql_token);
+
+    let push_token = token[0]["token"];
+    console.log(push_token);
+    let title = `알바천사 결과`;
+    let info = {
+      result: "fail",
+    };
+
+    push_noti(push_token, title, info);
+    console.log("stopped");
   }
-}
 
-/* type으로 jobs 테이블에서 job_id 가져오기 */
-async function getJobIdByType(req, res) {
-  const con = await pool.getConnection(async (conn) => conn);
-
-  try {
-    const sql = "SELECT job_id FROM jobs WHERE type=?";
-    const [result] = await con.query(sql, req.body["type"]);
-    con.release();
-    // console.log('getjob : ', result);
-    const job_id = result[0]["job_id"];
-    return job_id;
-    next();
-  } catch {
-    res.send("error-angel/call-getJobIdByType");
-  }
-}
-
-/* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00'형식으로 변환하여 리턴 */
-function masageDateToYearMonthDay(date_timestamp) {
-  let date = new Date(date_timestamp);
-  let year = date.getFullYear().toString();
-  let month = (date.getMonth() + 1).toString();
-  let day = date.getDate().toString();
-
-  if (month.length === 1) month = "0" + month;
-  if (day.length === 1) day = "0" + day;
-
-  return year + "-" + month + "-" + day;
-}
-
-/* 두 개의 좌표 간 거리 구하기 */
-function getDistance(lat1, lon1, lat2, lon2) {
-  if (lat1 == lat2 && lon1 == lon2) return 0;
-
-  let radLat1 = (Math.PI * lat1) / 180;
-  let radLat2 = (Math.PI * lat2) / 180;
-
-  let theta = lon1 - lon2;
-  let radTheta = (Math.PI * theta) / 180;
-  let dist =
-    Math.sin(radLat1) * Math.sin(radLat2) +
-    Math.cos(radLat1) * Math.cos(radLat2) * Math.cos(radTheta);
-
-  if (dist > 1) dist = 1;
-
-  dist = Math.acos(dist);
-  dist = (dist * 180) / Math.PI;
-  dist = dist * 60 * 1.1515 * 1.609344 * 1000;
-
-  if (dist < 100) dist = Math.round(dist / 10) * 10;
-  else dist = Math.round(dist / 100) * 100;
-
-  return dist;
+  return; // 필요함?
 }

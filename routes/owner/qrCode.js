@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const qrCodeRouter = Router();
-const pool = require('../../function');
+const pool = require('../../util/function');
 
  
 /* 사장님 사장님 최저시급 설정 페이지 */

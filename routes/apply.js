@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const applyRouter = Router();
-const pool = require("../function");
+const pool = require("../util/function");
 
 // 면접신청 페이지 - 매장정보
 // store_id : 1

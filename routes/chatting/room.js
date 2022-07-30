@@ -4,6 +4,7 @@ const mysql = require("mysql2/promise");
 const { getConnection } = require('../../util/function');
 
 const pool = require('../../util/function');
+const masageDate = require('../../util/masageDate');
 
 /**************************
  *         create         *
@@ -29,7 +30,7 @@ roomRouter.use('/create', async (req, res, next) => {
     const sql = `INSERT INTO rooms SET identifier=?, last_chat=?, createdAt=?, updatedAt=?`;
     let identifier = req.body['owner_id'].toString() + '-' + req.body['worker_id'].toString()
     req.body['identifier'] = identifier;
-    let date = masageDateToYearMonthDayHourMinSec(new Date())
+    let date = masageDate.masageDateToYearMonthDayHourMinSec(new Date())
     await con.query(sql, [identifier, '', date, date])
     con.release();
     next();
@@ -51,14 +52,15 @@ roomRouter.use('/create', async (req, res) => {
 
 /* input: { 'type': 'worker', 'id': 1 } */
 /* room 정보 가져오기 */
+// not_read_chat 추가 완료
 roomRouter.post('/list', async (req, res, next) => {
     const con = await pool.getConnection(async conn => conn);
-    const sql = `SELECT A.room_id, A.identifier, A.last_chat, A.updatedAt, B.name AS worker_name, C.name AS owner_name 
+    const sql = `SELECT A.room_id, A.identifier, A.last_chat, A.updatedAt, B.name AS worker_name, C.name AS owner_name, D.not_read_chat
     FROM rooms A 
     INNER JOIN workers B ON SUBSTRING_INDEX(A.identifier,'-',-1)=B.worker_id
     INNER JOIN owners C ON SUBSTRING_INDEX(A.identifier,'-',1)=C.owner_id
+    INNER JOIN room_participant_lists D ON A.room_id=D.FK_room_participant_lists_rooms AND D.user_type='${req.body['type']}'
     WHERE SUBSTRING_INDEX(A.identifier,'-',?)=${req.body['id']}`
-    
     
     let flag;
     if (req.body['type'] === 'owner') flag = 1
@@ -82,7 +84,7 @@ roomRouter.post('/list', async (req, res, next) => {
             result[i]['caller_name'] = result[i]['owner_name']
         }
         
-        let timeStamp = masageDateToYearMonthDayHourMinSec(result[i]["updatedAt"]);
+        let timeStamp = masageDate.masageDateToYearMonthDayHourMinSec(result[i]["updatedAt"]);
         result[i]["time"] = timeStamp.slice(0, -3);
         console.log(result[i]["time"]);
         delete result[i]["identifier"];
@@ -90,16 +92,7 @@ roomRouter.post('/list', async (req, res, next) => {
         delete result[i]["owner_name"];
         delete result[i]["worker_name"];
 
-        // let timeStamp = masageDateToYearMonthDayHourMinSec(result[i]['updatedAt']).split(' ')
-        // let date = timeStamp[0]
-        // let time = timeStamp[1].split(':')
-        // result[i]['date'] = date
-        // result[i]['time'] = time[0]+'시 '+time[1]+'분' 
-
-        // delete result[i]['identifier']
-        // delete result[i]['updatedAt']
-        // delete result[i]['owner_name']
-        // delete result[i]['worker_name']
+        
     }
     console.log(result)
     res.send(result)
@@ -129,31 +122,3 @@ roomRouter.post('/list/owner/:owner_id', async (req, res) => {
 
 
 module.exports = roomRouter;
-
-/**************************
- *        function        *
- **************************/
-function masageDateToYearMonthDayHourMinSec(date_timestamp) {
-    let date = new Date(date_timestamp);
-    let hour = date.getHours().toString();
-    let min = date.getMinutes().toString();
-    let sec = date.getSeconds().toString();
-  
-    if (hour.length === 1) hour = '0'+hour
-    if (min.length === 1) min = '0'+min
-    if (sec.length === 1) sec = '0'+sec
-  
-    return (masageDateToYearMonthDay(date_timestamp)+' '+hour+':'+min+':'+sec);
-}
-
-function masageDateToYearMonthDay(date_timestamp) {
-    let date = new Date(date_timestamp);
-    let year = date.getFullYear().toString();
-    let month = (date.getMonth() + 1).toString();
-    let day = date.getDate().toString();
-
-    if (month.length === 1) month = '0'+month;
-    if (day.length === 1) day = '0'+day;
-
-    return (year+'-'+month+'-'+day);
-}

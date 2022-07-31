@@ -4,7 +4,8 @@ const mysql = require("mysql2/promise");
 
 const pool = require("../../../util/function");
 const masageDate = require("../../../util/masageDate");
-const push_noti = require("../../push");
+const push_interview = require("../../../util/push_interview");
+// const push_noti = require("../../push");
 
 /* state = 1(입장대기)일 때  */
 /* {inerview_id:1 } */
@@ -16,6 +17,7 @@ interviewRouter.post("/exit", async (req, res) => {
   try {
     const sql = `update interviews set state = 4 where interview_id = ${interview_id}`;
     const [result] = await con.query(sql);
+
     con.release();
     res.send({ state: "success" });
   } catch {
@@ -49,6 +51,38 @@ interviewRouter.post("/accept", async (req, res) => {
             const [result] = await con.query(sql);
         }
         // console.log('result: ',result);
+
+        
+        // /* worker_id 찾고 */
+        // msg = "select worker_id";
+        // const sql_worker = `select FK_interviews_workers, FK_interviews_stores from interviews where interview_id = ${interview_id};`;
+        // const [worker] = await con.query(sql_worker);
+        
+        // msg = "select name";
+        // const sql_store = `select name from stores where store_id = ${worker[0]["FK_interviews_stores"]};`;
+        // const [store] = await con.query(sql_store);
+        
+        // /* token 찾아서 push */
+        
+        // msg = "select token";
+        // const sql_token = `select token from permissions 
+        //     where FK_permissions_workers = ${worker[0]["FK_interviews_workers"]};`;
+        // const [token] = await con.query(sql_token);
+        
+        // let push_token = token[0]["token"];
+        // console.log("token: ", worker[0]["FK_interviews_workers"], worker[0]["FK_interviews_stores"], push_token);
+        
+        let title = "면접 신청결과";
+        let data = (value !== "true" && value !== true) ? 'reject' : 'accept';
+        // let info = {
+        //         store_name: store[0]["name"],
+        //         result: (value !== "true" && value !== true) ? 'reject' : 'accept'
+        //     };
+            
+        push_interview.push_worker(interview_id, title, data);
+
+        // msg = "push_noti";
+        // await push_noti(push_token, title, info);
 
         con.release();
         res.send("success");
@@ -95,27 +129,32 @@ interviewRouter.post("/result", async (req, res) => {
 
         
 
-        msg = "select name";
-        const sql_store = `select name from stores where store_id = ${worker[0]["FK_interviews_stores"]};`;
-        const [store] = await con.query(sql_store);
+        // msg = "select name";
+        // const sql_store = `select name from stores where store_id = ${worker[0]["FK_interviews_stores"]};`;
+        // const [store] = await con.query(sql_store);
 
-        /* token 찾아서 push */
+        // /* token 찾아서 push */
 
-        msg = "select token";
-        const sql_token = `select token from permissions 
-            where FK_permissions_workers = ${worker[0]["FK_interviews_workers"]};`;
-        const [token] = await con.query(sql_token);
+        // msg = "select token";
+        // const sql_token = `select token from permissions 
+        //     where FK_permissions_workers = ${worker[0]["FK_interviews_workers"]};`;
+        // const [token] = await con.query(sql_token);
 
-        let push_token = token[0]["token"];
-        console.log(push_token);
+        // let push_token = token[0]["token"];
+        // console.log("token: ", push_token);
 
+        // let title = "면접 결과";
+        // let info = {
+        // store_name: store[0]["name"],
+        // };
+        
         let title = "면접 결과";
-        let info = {
-        store_name: store[0]["name"],
-        };
+        let data = (value !== "true" && value !== true) ? 'fail' : 'success';
+           
+        push_interview.push_worker(interview_id, title, data);
 
-        msg = "push_noti";
-        push_noti(push_token, title, info);
+        // msg = "push_noti";
+        // await push_noti(push_token, title, info);
 
         /* create chatting room */
 
@@ -148,40 +187,3 @@ interviewRouter.post("/result", async (req, res) => {
 });
 
 module.exports = interviewRouter;
-
-/************************ function *************************/
-
-// /* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00'형식으로 변환하여 리턴 */
-// function masageDateToYearMonthDay(date_timestamp) {
-//   let date = new Date(date_timestamp);
-//   let year = date.getFullYear().toString();
-//   let month = (date.getMonth() + 1).toString();
-//   let day = date.getDate().toString();
-
-//   if (month.length === 1) month = "0" + month;
-//   if (day.length === 1) day = "0" + day;
-
-//   return year + "-" + month + "-" + day;
-// }
-
-// /* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00 00:00:00'형식으로 변환하여 리턴 */
-// function masageDateToYearMonthDayHourMinSec(date_timestamp) {
-//   let date = new Date(date_timestamp);
-//   let hour = date.getHours().toString();
-//   let min = date.getMinutes().toString();
-//   let sec = date.getSeconds().toString();
-
-//   if (hour.length === 1) hour = "0" + hour;
-//   if (min.length === 1) min = "0" + min;
-//   if (sec.length === 1) sec = "0" + sec;
-
-//   return (
-//     masageDateToYearMonthDay(date_timestamp) +
-//     " " +
-//     hour +
-//     ":" +
-//     min +
-//     ":" +
-//     sec
-//   );
-// }

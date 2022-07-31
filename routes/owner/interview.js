@@ -11,7 +11,7 @@ interviewRouter.post('/', async (req, res) => {
     try{
         const owner_id = req.body['owner_id'];
         cards = {};
-        console.log(owner_id);
+        // console.log(owner_id);
         const sql_store = `select store_id from stores where FK_stores_owners = ${owner_id};`;
         const [result_store] = await con.query(sql_store);
         const store_id = result_store[0]['store_id'];
@@ -27,7 +27,7 @@ interviewRouter.post('/', async (req, res) => {
         const [result] = await con.query(sql);
         n = result.length;
         pre_state = 0;
-        console.log('>>>>>', result, '<<<<<');
+        // console.log('>>>>>', result, '<<<<<');
     
         const sql_owner = `SELECT name FROM owners WHERE owner_id = ${owner_id};`;
         const [result_owner] = await con.query(sql_owner);
@@ -70,7 +70,7 @@ interviewRouter.post('/', async (req, res) => {
         }
     
         // res.send(dummy)
-        console.log(cards);
+        // console.log(cards);
         con.release();
         res.send(cards);
     }

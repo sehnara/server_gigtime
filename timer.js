@@ -43,6 +43,40 @@ module.exports = {
             }
             con.release();
         })
+    },
+    /* 매 정시마다 실행되며 orders 테이블 status 업데이트 */
+    interview: async function () { 
+        schedule.scheduleJob('0 1 * * * *', async function() {
+            const con = await pool.getConnection(async conn => conn);
+            let now = new Date();
+            now_date = now.toISOString().split('T')[0];
+            now_hour = now.getHours().toString().split(':')[0];
+            console.log('now: ',now_date, now_hour);
+        
+            /* 1시간마다 변경해야 하는 것은 */
+            // 1. interviews 테이블의 status
+            // - 0: 거절, 1: 입장대기, 2: 승인대기, 3: 면접대기, 4: 면접종료, 5: 결과확인, 6: 만료
+            // - 1, 2, 3 인 채로 면접 일자가 지나버리면 만료(6)로 변경
+            const sql = `SELECT interview_id, FK_interviews_workers, state
+            FROM interviews a 
+            join interview_times b on a.FK_interviews_interview_times = b.interview_time_id
+            WHERE (state=1 || state=2 || state=3) AND ((a.interview_date = '${now_date}'  AND b.time<'${now_hour}') || a.interview_date<'${now_date}') ORDER BY interview_date ASC;`
+            const [result] = await con.query(sql);
+            console.log('만료 interview: ', result)
+            
+            
+            // 만료처리하기
+            const sql2 = `update interviews set state=6 where interview_id=?`
+        
+            let update_interviews = new Array();
+            for (let i = 0; i < result.length; i++) {
+                // 여기서 status 변경처리 하면됨
+                await con.query(sql2, [result[i]['interview_id']]);
+                update_interviews.push(result[i]['FK_interviews_workers']);
+            }
+            // 만료된거 푸시해줄수도
+            con.release();
+        })
     }
 };
 

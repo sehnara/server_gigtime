@@ -90,7 +90,7 @@ workRouter.use('/', async (req, res, next) => {
                 masageDate.masageDateToHour(tmp['start_time']) + ',' + tmp['price'].toString() + ',' + tmp['name'] + ',' + tmp['hourlyorders_id']
             );
         }
-        console.log(send_data);
+        // console.log(send_data);
         res.send(send_data);
     }
     catch{

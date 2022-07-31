@@ -12,7 +12,7 @@ async function getStoreIdByOwnerId(owner_id) {
     const sql = "SELECT store_id FROM stores WHERE FK_stores_owners=?";
     const [result] = await con.query(sql, [owner_id]);
     con.release();
-    console.log(result[0]["store_id"]);
+    // console.log(result[0]["store_id"]);
     return result[0]["store_id"];
   } catch {
     console.log("error");

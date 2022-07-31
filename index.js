@@ -181,7 +181,8 @@ io.on("connection", (socket) => {
                   WHERE FK_room_participant_lists_rooms='${data['FK_chattings_rooms']}' AND user_type!='${data['send_user_type']}'`
     const [result] = await con.query(sql6);
     console.log('not read chat: ', result[0]['not_read_chat']);
-    data['not_read_chat'] = result['not_read_chat']
+    data['not_read_chat'] = result[0]['not_read_chat']
+    data['room_id'] = data['FK_chattings_rooms'];
     socket.to(data.room_id).emit("receive_message", data);
   
 
@@ -213,8 +214,8 @@ app.use("/chatting", chattingRouter);
 
 /* 일정 주기로 실행되며 DB 업데이트 실행 */
 let timers = require("./timer");
-
 timers.job();
+timers.interview();
 
 server.listen(PORT, () => {
   console.log(`server running on ${PORT}`);

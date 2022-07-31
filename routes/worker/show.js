@@ -6,81 +6,25 @@ let util = require("util");
 const { request } = require("http");
 const getDist = require("../../util/getDist");
 
-/* 알바 모집 정보 return (지정 거리 이내)
-   data form === 
-{
-    'worker_id': 1,
-    'cursor': null
-} */
-showRouter.post("/hourly_orders", async (req, res, next) => {
-  const con = await pool.getConnection(async (conn) => conn);
-  /* 1. 해당 order에 해당하는 hourly_order 가져오기. */
-  // FK_hourlyorders_workers === NULL인 것만.
-  let cursor = Number(req.body["cursor"]) || 0;
-  const sql = `SELECT A.hourlyorders_id, A.FK_hourlyorders_orders AS order_id, A.FK_hourlyorders_workers, A.work_date, A.start_time, B.FK_orders_stores AS store_id, B.FK_orders_jobs AS job_id, B.description, B.min_price, C.FK_stores_owners, C.name, C.address, C.latitude, C.longitude, C.minimum_wage, C.background_image_url, C.background_image, D.type FROM hourly_orders A 
-                    INNER JOIN orders B ON A.FK_hourlyorders_orders = B.order_id 
-                    INNER JOIN stores C ON B.FK_orders_stores = C.store_id 
-                    INNER JOIN jobs D ON B.FK_orders_jobs = D.job_id
-                    WHERE hourlyorders_id>${cursor} AND FK_hourlyorders_orders IN 
-                    (SELECT order_id FROM orders 
-                        WHERE status=0 AND FK_orders_stores IN 
-                        (SELECT store_id FROM stores WHERE store_id IN 
-                            (SELECT FK_qualifications_stores FROM qualifications 
-                                WHERE FK_qualifications_workers=?))) ORDER BY A.hourlyorders_id ASC LIMIT 100`; // 개수제한.. 일단.
-  try {
-    const [valid_hourly_orders] = await con.query(sql, req.body["worker_id"]);
-    // console.log(valid_hourly_orders)
-    req.body["valid_hourly_orders"] = valid_hourly_orders;
-    con.release();
-    next();
-  } catch {
-    con.release();
-    res.send("error");
-  }
-});
-
-/* 2. worker의 latitude, longitude 가져오기 */
-showRouter.use("/hourly_orders", async (req, res) => {
-  console.log(req, res);
-  const con = await pool.getConnection(async (conn) => conn);
-  try {
-    const sql =
-      "SELECT latitude, longitude, `range` FROM workers WHERE worker_id=?";
-    const [result] = await con.query(sql, req.body["worker_id"]);
-    con.release(); 
-    const data = masage_data(
-      result[0]["latitude"],
-      result[0]["longitude"],
-      result[0]["range"],
-      req.body["valid_hourly_orders"]
-    );
-    if(data.length!==0){
-      res.send(data);
-    }
-    else{
-      res.send('notFound');
-    }
-  } catch {
-    con.release();
-    res.send("error");
-  }
-});
-
 module.exports = showRouter;
 
 /* { 'worker_id': 1, 'cursor': null } cursor는 store_id */
 /*
     [ 정상적 형태 ]
-    "name": "보리누리",
-    "distance": 3991000,
-    "types": ["카운터", "청소"],
-    "orders": [
-        { "order_id":5, "type":"카운터", "price":10000, "work_date": "2022-08-20" },
-        { ... }
+    [
+      {
+        "name": "보리누리",
+        "distance": 3991000,
+        "types": ["카운터", "청소"],
+        "orders": [
+            { "order_id":5, "type":"카운터", "price":10000, "work_date": "2022-08-20" },
+            { ... }
+        ]
+      },
     ]
 */
 /* 1. worker의 range를 가져오자 */
-showRouter.post("/hourly_orders2", async (req, res, next) => {
+showRouter.post("/hourly_orders", async (req, res, next) => {
   const con = await pool.getConnection(async (conn) => conn);
   const sql =
     "SELECT `range`, latitude, longitude FROM workers WHERE worker_id=? LIMIT 1";
@@ -95,7 +39,7 @@ showRouter.post("/hourly_orders2", async (req, res, next) => {
 });
 
 /* 2. worker가 설정한 거리 안에 있는 store 정보를 모두 가져오자 */
-showRouter.use("/hourly_orders2", async (req, res, next) => {
+showRouter.use("/hourly_orders", async (req, res, next) => {
   const con = await pool.getConnection(async (conn) => conn);
   const sql = `SELECT store_id, FK_stores_owners AS owner_id, name, address, latitude, longitude FROM stores`;
   const [result] = await con.query(sql);
@@ -129,7 +73,7 @@ showRouter.use("/hourly_orders2", async (req, res, next) => {
 });
 
 /* 3. order를 가져올건데, 가져온 store에 해당하는 것만! */
-showRouter.use("/hourly_orders2", async (req, res, next) => {
+showRouter.use("/hourly_orders", async (req, res, next) => {
   const con = await pool.getConnection(async (conn) => conn);
   let store_list = req.body["store_list"];
   let store_ids = req.body["store_ids"];
@@ -146,7 +90,8 @@ showRouter.use("/hourly_orders2", async (req, res, next) => {
   //     { ... }
   // ]
   let count = 0;
-  let store_orders = new Array();
+  // let store_orders = new Array();
+  let valid_hourly_orders = new Array();
   for (let i = store_ids_idx; i < store_ids.length; i++) {
     if (count === 5) break;
 
@@ -155,40 +100,53 @@ showRouter.use("/hourly_orders2", async (req, res, next) => {
       // 유효한 매장
 
       for (let j = 0; j < orders.length; j++) {
-        const sql2 = `SELECT hourlyorders_id, FK_hourlyorders_workers AS worker_id, work_date, start_time
-                              FROM hourly_orders
-                              WHERE FK_hourlyorders_orders=${orders[j]["order_id"]}`;
+        const sql2 = `SELECT A.hourlyorders_id, A.FK_hourlyorders_workers, A.work_date, A.start_time, B.order_id, B.description, B.min_price, C.store_id, C.FK_stores_owners, C.name, C.address, C.latitude, C.longitude, C.minimum_wage, D.job_id, D.type 
+                      FROM hourly_orders A
+                      INNER JOIN orders B ON A.FK_hourlyorders_orders=B.order_id
+                      INNER JOIN stores C ON B.FK_orders_stores=C.store_id
+                      INNER JOIN jobs D ON B.FK_orders_jobs=D.job_id
+                      WHERE FK_hourlyorders_orders=${orders[j]["order_id"]}`;
         const [hourly_orders] = await con.query(sql2);
-        orders[j]["hourly_orders"] = hourly_orders;
+        // console.log(hourly_orders)
+        // orders[j]["hourly_orders"] = hourly_orders;
+        valid_hourly_orders = valid_hourly_orders.concat(hourly_orders)        
       }
-      store_orders.push({
-        store_id: store_ids[i],
-        name: store_list[i]["name"],
-        address: store_list[i]["address"],
-        distance: req.body["distance"],
-        types: [],
-        orders: orders,
-      });
+      // store_orders.push({
+      //   store_id: store_ids[i],
+      //   name: store_list[i]["name"],
+      //   address: store_list[i]["address"],
+      //   distance: req.body["distance"],
+      //   types: [],
+      //   orders: orders,
+      // });
       // console.log(store_orders[count]['orders'])
       // console.log('-----')
       count += 1;
     }
   }
 
+  const data = masage_data(
+    req.body["latitude"],
+    req.body["longitude"],
+    req.body["range"],
+    valid_hourly_orders
+  );
+  console.log(data);
   /* 4. store의 job을 모두 가져오자 */
-  const sql3 = `SELECT B.type
-                  FROM store_job_lists A
-                  INNER JOIN jobs B ON A.FK_store_job_lists_jobs = B.job_id
-                  WHERE A.FK_store_job_lists_stores=?`;
+  // const sql3 = `SELECT B.type
+  //                 FROM store_job_lists A
+  //                 INNER JOIN jobs B ON A.FK_store_job_lists_jobs = B.job_id
+  //                 WHERE A.FK_store_job_lists_stores=?`;
 
-  for (let k = 0; k < store_orders.length; k++) {
-    const [jobs] = await con.query(sql3, store_orders[k]["store_id"]);
-    for (let l = 0; l < jobs.length; l++) {
-      store_orders[k]["types"].push(jobs[l]["type"]);
-    }
-  }
+  // for (let k = 0; k < store_orders.length; k++) {
+  //   const [jobs] = await con.query(sql3, store_orders[k]["store_id"]);
+  //   for (let l = 0; l < jobs.length; l++) {
+  //     store_orders[k]["types"].push(jobs[l]["type"]);
+  //   }
+  // }
   con.release();
-  res.send(store_orders);
+  res.send(data);
+  // res.send(store_orders);
 });
 
 /************************ function *************************/
@@ -216,6 +174,7 @@ function masage_data(latitude, longitude, range, data) {
 
       databox.push({
         name: d["name"],
+        store_id: d["store_id"],
         minimum_wage: d["minimum_wage"],
         distance: distance,
         background_image: d["background_image"],

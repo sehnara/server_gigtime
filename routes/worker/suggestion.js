@@ -2,7 +2,8 @@ const { Router } = require('express');
 const suggestionRouter = Router();
 const mysql = require("mysql2/promise");
 
-const pool = require('../function');
+const pool = require('../../util/function');
+const getDist = require('../../util/getDist');
 
 
 /* 최적의 알바 추천 */
@@ -74,7 +75,7 @@ suggestionRouter.post('/', async (req, res) => {
     }
     catch{
       con.release();
-      res.send('error-worker/suggestion');
+      res.send('error');
     }
   })
 
@@ -98,14 +99,14 @@ suggestionRouter.post('/', async (req, res) => {
     for (i of orders){
       tmp += `update hourly_orders SET FK_hourlyorders_workers=${req.body['worker_id']}, closing_time='${day}', status=1 WHERE hourlyorders_id=${i}; `
     }
-    console.log(tmp)
+    // console.log(tmp)
     const [result] = await con.query(tmp);
     con.release();
     res.send('success');    
   }
   catch{
     con.release();
-    res.send('error-worker/suggestion/submit');
+    res.send('error');
   }
 
 })
@@ -133,7 +134,7 @@ async function suggestion(worker_id, hourly_orders, start_times)
       /* 우선, range 이내의 hourly_order를 가져오자. */
       let hourly_orders_sliced = getInnerRange(latitude, longitude, range, hourly_orders);
       // console.log('총 개수: ' + hourly_orders_sliced.length);
-      // console.log(hourly_orders_sliced);
+      console.log(hourly_orders_sliced);
   
       /* 이제 들어온 시간 별로 나눠야 한다. */
       let hourly_orders_divided_by_start_time = {};
@@ -180,7 +181,7 @@ async function suggestion(worker_id, hourly_orders, start_times)
       let key = new Date(start_times[0]);
       for (let i = 0; i < hourly_orders_divided_by_start_time[key].length; i++) {
           let short = hourly_orders_divided_by_start_time[key][i];
-          let move_first = getDistance(latitude, 
+          let move_first = getDist.getDistance(latitude, 
                                       longitude, 
                                       hourly_orders_sliced[short['idx']]['latitude'],
                                       hourly_orders_sliced[short['idx']]['longitude']);
@@ -250,7 +251,7 @@ async function suggestion(worker_id, hourly_orders, start_times)
           let next_longitude = hourly_orders_sliced[short['idx']]['longitude'];
           let next_visit = Object.assign(Array(), visit);
           /* 거리를 계산하자 */
-          let move = getDistance(latitude, 
+          let move = getDist.getDistance(latitude, 
                                   longitude,
                                   next_latitude,
                                   next_longitude);
@@ -325,28 +326,28 @@ async function suggestion(worker_id, hourly_orders, start_times)
 }
 
 
-/* 두 개의 좌표 간 거리 구하기 */
-function getDistance(lat1, lon1, lat2, lon2) {
-    if ((lat1 == lat2) && (lon1 == lon2)) return 0;
+// /* 두 개의 좌표 간 거리 구하기 */
+// function getDistance(lat1, lon1, lat2, lon2) {
+//     if ((lat1 == lat2) && (lon1 == lon2)) return 0;
   
-    let radLat1 = Math.PI * lat1 / 180;
-    let radLat2 = Math.PI * lat2 / 180;
+//     let radLat1 = Math.PI * lat1 / 180;
+//     let radLat2 = Math.PI * lat2 / 180;
   
-    let theta = lon1 - lon2;
-    let radTheta = Math.PI * theta / 180;
-    let dist = Math.sin(radLat1) * Math.sin(radLat2) + Math.cos(radLat1) * Math.cos(radLat2) * Math.cos(radTheta);
+//     let theta = lon1 - lon2;
+//     let radTheta = Math.PI * theta / 180;
+//     let dist = Math.sin(radLat1) * Math.sin(radLat2) + Math.cos(radLat1) * Math.cos(radLat2) * Math.cos(radTheta);
   
-    if (dist > 1) dist = 1;
+//     if (dist > 1) dist = 1;
     
-    dist = Math.acos(dist);
-    dist = dist * 180 / Math.PI;
-    dist = dist * 60 * 1.1515 * 1.609344 * 1000;
+//     dist = Math.acos(dist);
+//     dist = dist * 180 / Math.PI;
+//     dist = dist * 60 * 1.1515 * 1.609344 * 1000;
   
-    if (dist < 100) dist = Math.round(dist / 10) * 10;
-    else dist = Math.round(dist / 100) * 100;
+//     if (dist < 100) dist = Math.round(dist / 10) * 10;
+//     else dist = Math.round(dist / 100) * 100;
     
-    return dist;
-}
+//     return dist;
+// }
 
 
 /* 현재위치에서 range 이내인 info 원소만 뽑아서 return */
@@ -358,7 +359,7 @@ function getInnerRange(latitude, longitude, range, info) {
     /* 이렇게 짜면 너무 너무 비효율적이다 */
     /* db 구조를 바꿔야 하나? 아니면, 탐색 방식을 개선? */
     for (let i = 0; i < n; i++) {
-        tmp = getDistance(latitude, longitude, info[i]['latitude'], info[i]['longitude']);
+        tmp = getDist.getDistance(latitude, longitude, info[i]['latitude'], info[i]['longitude']);
         if (tmp <= range) {
             answer.push(info[i]);
         }

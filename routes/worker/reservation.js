@@ -1,19 +1,7 @@
 const { Router } = require('express');
 const reservationRouter = Router();
-const mysql = require("mysql2/promise");
-
-const nodeGeocoder = require('node-geocoder');
-const { rawListeners } = require('../function');
-
-/* 구글 map api */
-const options = {
-    provider: 'google',
-    apiKey: 'AIzaSyAHZxHAkDSHoI-lJDCg5YfO7bLCFiRBpaU' // 요놈 넣어만 주면 될듯?
-};
-const geocoder = nodeGeocoder(options);
-
-const pool = require('../function');
-
+const pool = require('../../util/function');
+const masageDate = require('../../util/masageDate');
 
 
 /* 알바 예약 페이지 */
@@ -25,10 +13,10 @@ const pool = require('../function');
   'type': '설거지'
 } */
 reservationRouter.post('/list', async (req, res, next) => {
-    console.log(req.body);
+    console.log('reservation: ', req.body);
     const con = await pool.getConnection(async conn => conn);
     const sql = "SELECT job_id FROM jobs WHERE type=?"
-    req.body['work_date'] = masageDateToYearMonthDay(req.body['work_date']);
+    req.body['work_date'] = masageDate.masageDateToYearMonthDay(req.body['work_date']);
     try {
         const [result] = await con.query(sql, req.body['type'])
         req.body['job_id'] = result[0]['job_id'];
@@ -79,53 +67,64 @@ reservationRouter.post('/save', async (req, res, next) => {
                     FROM hourly_orders 
                     WHERE hourlyorders_id IN (?)
                   ) LIMIT 1`
-                     
-    const [result] = await con.query(sql, [req.body['hourlyorder_id']])
-    console.log(result)
-    con.release()
-
-    if (result.length > 0) {
-        res.send("Reservation failed");
-        return;
-    } else {
-        console.log("Reservation is possible!")
-        next();
+    
+    try{
+        const [result] = await con.query(sql, [req.body['hourlyorder_id']])
+        console.log(result)
+        con.release()
+    
+        if (result.length > 0) {
+            res.send("Reservation failed");
+            return;
+        } else {
+            console.log("Reservation is possible!")
+            next();
+        }    
+    }
+    catch{
+        con.release();
+        res.send('error');
     }
 })
 
 reservationRouter.use('/save', async (req, res) => {
-    console.log(req.body)
+    // console.log(req.body)
     const con = await pool.getConnection(async conn => conn);
     const sql = "UPDATE hourly_orders SET FK_hourlyorders_workers=?, closing_time=? WHERE hourlyorders_id=?";
-
-    for (let i = 0; i < req.body['hourlyorder_id'].length; i++) {
-        let tmp = new Date().getTime();
-        let timestamp = new Date(tmp);
-        /* check! 쿼리를 한 번만 실행해서 해당 column 모두 UPDATE 하는 방법은? */
-        await con.query(sql, [req.body['worker_id'], timestamp, req.body['hourlyorder_id'][i]]); 
+    try{
+        for (let i = 0; i < req.body['hourlyorder_id'].length; i++) {
+            let tmp = new Date().getTime();
+            let timestamp = new Date(tmp);
+            /* check! 쿼리를 한 번만 실행해서 해당 column 모두 UPDATE 하는 방법은? */
+            await con.query(sql, [req.body['worker_id'], timestamp, req.body['hourlyorder_id'][i]]); 
+        }
+        check_all_hourlyorders_true(req.body['hourlyorder_id'][0]);
+        con.release();
+        res.send('success');
     }
-    check_all_hourlyorders_true(req.body['hourlyorder_id'][0]);
-    con.release();
-    res.send('success');
-  })
+    catch{
+        con.release();
+        res.send('error');        
+    }
+})
 
 module.exports = reservationRouter;
 
 /************************ function *************************/
 
 
-/* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00'형식으로 변환하여 리턴 */
-function masageDateToYearMonthDay(date_timestamp) {
-    let date = new Date(date_timestamp);
-    let year = date.getFullYear().toString();
-    let month = (date.getMonth() + 1).toString();
-    let day = date.getDate().toString();
+// /* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00'형식으로 변환하여 리턴 */
+// function masageDateToYearMonthDay(date_timestamp) {
+//     let date = new Date(date_timestamp);
+//     let year = date.getFullYear().toString();
+//     let month = (date.getMonth() + 1).toString();
+//     let day = date.getDate().toString();
     
-    if (month.length === 1) month = '0'+month;
-    if (day.length === 1) day = '0'+day;
+//     if (month.length === 1) month = '0'+month;
+//     if (day.length === 1) day = '0'+day;
     
-    return (year+'-'+month+'-'+day);
-}
+//     return (year+'-'+month+'-'+day);
+// }
 
   
 /* order의 모든 hourlyorder가 예약 된 경우, order의 status=1로 변경 */

@@ -1,7 +1,7 @@
 const express = require("express");
 const app = express();
 const mysql = require('mysql2/promise');
-const pool = require('./routes/function');
+const pool = require('./util/function');
 const schedule = require('node-schedule');
 
 module.exports = {

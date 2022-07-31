@@ -2,7 +2,7 @@ const { Router } = require("express");
 const imageUploadRouter = Router();
 const mysql = require("mysql2/promise");
 const { upload } = require("../../../middleware/imageUpload");
-const pool = require("../../function");
+const pool = require("../../../util/function");
 
 // imageUploadRouter.post('/logo', upload('logo').single('logo'), async (req, res) => {
 //     const con = await pool.getConnection(async (conn) => conn);

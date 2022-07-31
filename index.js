@@ -126,7 +126,7 @@ io.on("connection", (socket) => {
 
   socket.on("send_message", async (data) => {
     console.log("11111", data);
-    socket.to(data.room_id).emit("receive_message", data);
+    
     delete data["caller_name"];
     const con = await pool.getConnection(async (conn) => conn);
     const sql = `INSERT INTO chattings 
@@ -175,6 +175,15 @@ io.on("connection", (socket) => {
                   SET last_chatting_id=?, updatedAt=?
                   WHERE FK_room_participant_lists_rooms=?`;
     await con.query(sql5, [last_chatting_id[0]['chatting_id'], data['createdAt'], data['FK_chattings_rooms']]);
+
+    const sql6 = `SELECT not_read_chat
+                  FROM room_participant_lists
+                  WHERE FK_room_participant_lists_rooms='${data['FK_chattings_rooms']}' AND user_type!='${data['send_user_type']}'`
+    const [result] = await con.query(sql6);
+    console.log('not read chat: ', result[0]['not_read_chat']);
+    data['not_read_chat'] = result['not_read_chat']
+    socket.to(data.room_id).emit("receive_message", data);
+  
 
     con.release();
     console.log("ok");

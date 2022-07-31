@@ -5,18 +5,12 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 const path = require('path');
 const fs = require("fs");
+const pool = require('./util/function');
 
 /* console.log depth에 필요 */
 let util = require("util");
 
-const pool = mysql.createPool({
-  host: '',
-  user: '',
-  password: '',
-  database: '',
-  connectionLimit: 0,
-  multipleStatements: true,
-});
+
 
 
 /* 실행 시 특정 csv 파일 데이터를 owners, stores 테이블에 insert */
@@ -225,6 +219,7 @@ async function insert_dummy_into_orders(number) {
     let start_time;
 
     for (let i = 0; i < number; i++) {
+        console.log('i: ',i)
         // 매번 랜덤하게 지정
         store_id = Math.floor(Math.random() * (443 - 1)) + 1
         job_id = Math.floor(Math.random() * (12 - 1)) + 1
@@ -239,8 +234,8 @@ async function insert_dummy_into_orders(number) {
         const sql_get_order_id = `SELECT order_id FROM orders ORDER BY order_id DESC LIMIT 1`
         const [result] = await con.query(sql_get_order_id)
         order_id = result[0]['order_id']
-        start_day = (Math.floor(Math.random() * (15 - 1)) + 1)
-        end_day = (Math.floor(Math.random() * (15 - start_day)) + start_day)
+        start_day = (Math.floor(Math.random() * (30 - 1)) + 1)
+        end_day = (Math.floor(Math.random() * (30 - start_day)) + start_day)
         number_of_days = end_day - start_day + 1
 
         start_hour = (Math.floor(Math.random() * (24 - 0)) + 0)
@@ -269,9 +264,84 @@ async function insert_dummy_into_orders(number) {
         }
         const sql_insert_to_hourlyorders = `INSERT INTO hourly_orders (FK_hourlyorders_orders, work_date, start_time) VALUES ?`
         await con.query(sql_insert_to_hourlyorders, [insert_data_for_hourlyorders_table])
+        console.log('success')
     }
 }
 // insert_dummy_into_orders(1000)
+
+async function auto_order() {
+    let store_id;
+    let job_id;
+    let description;
+    let description_list = [
+        "알바하러 오세용, 일이 그렇게 어렵지 않아요~",
+        "알바 구합니다. 빠릿한 분만.",
+        "넓고 쾌적한 매장에서 함께 일할 분 찾습니다!!",
+        "시급높고 강도낮은 여기가 알바하기엔 천국이여.",
+        "드루와, 잘해줄게",
+        "간단한 업무, 책임감 있는 자 이리로 오라",
+        "사고만 치지 마세요. 그럼 모두 OK",
+        "가족처럼 일 할 사람을 찾고 있어요~",
+        "오래오래 함께 맞춰나갈 분 환영, 대환영!!",
+        "철새는 지나가주세요.",
+        "알바 뽑습니다.",
+        "많은 관심 부탁드려용ㅎㅎ",
+        "혼자 일하기 진짜 힘듭니다 도와주세요.",
+        "요즘은 알바가 아니라 알바님이라고 불러야 겠어요.",
+        "알바님, 환영합니다.",
+        "사장님이 젋고 착하신 가게를 찾는다면 이곳입니당~",
+        "여보세요, 알바 찾으세요?",
+        "힘든 일은 아니니 겁먹지 마세요.",
+        "모집공고만 보고 지나가면 나빠요~",
+        "시급이 부족하면 올려달라고 하셔도 되는 매장",
+        "여~ 일해볼텐가?",
+    ]
+    let min_price;
+
+    let order_id;
+    let start_day;
+    let end_day;
+    let work_date;
+    let start_hour;
+    let end_hour;
+    let start_time;
+
+    /* 랜덤 지정 */
+    store_id = Math.floor(Math.random() * (443 - 1)) + 1
+    job_id = Math.floor(Math.random() * (12 - 1)) + 1
+    des_number = Math.floor(Math.random() * (description_list.length - 1 - 0)) + 0
+    description = description_list[des_number]
+    min_price = (Math.floor(Math.random() * (140 - 98)) + 98) * 100
+
+    let tmp_order = [store_id, job_id, description, min_price];
+    const sql_insert_to_orders = `INSERT INTO orders SET FK_orders_stores=?, FK_orders_jobs=?, description=?, min_price=?, status=0`
+    await con.query(sql_insert_to_orders, [store_id, job_id, description, min_price])
+
+    const sql_get_order_id = `SELECT order_id FROM orders ORDER BY order_id DESC LIMIT 1`
+    const [result] = await con.query(sql_get_order_id)
+    order_id = result[0]['order_id']
+    start_day = (Math.floor(Math.random() * (15 - 1)) + 1)
+    end_day = (Math.floor(Math.random() * (15 - start_day)) + start_day)
+    number_of_days = end_day - start_day + 1
+
+    start_hour = (Math.floor(Math.random() * (24 - 0)) + 0)
+    end_hour = (Math.floor(Math.random() * (25 - (start_hour + 1)) + (start_hour + 1)))
+    number_of_hours = end_hour - start_hour
+
+    for (let j = 0; j < number_of_days; j++) {
+        let work_day = (start_day + j).toString()
+        if (work_day.length === 1) work_day = '0' + work_day
+        work_date = '2022-08-' + work_day // 2022-08-11
+
+        for (let k = 0; k < number_of_hours; k++) {
+            let tmp = (start_hour + k).toString()
+            if (tmp.length === 1) tmp = '0' + tmp
+            start_time = work_date + ' ' + tmp + ':00:00'
+            // console.log('work_date: ',work_date, ', start_time: ',start_time)
+            insert_data_for_hourlyorders_table.push([order_id, work_date, start_time])
+        }
+    }
+}
 
 /* qualifications 테이블에 특정 계정을 마스터로 */
 async function insert_dummy_into_qualifications(worker_id) {
@@ -325,5 +395,5 @@ async function update_owners_name () {
     con.release()
   
   }
-  update_owners_name()
+//   update_owners_name()
   

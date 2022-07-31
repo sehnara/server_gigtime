@@ -184,12 +184,26 @@ io.on("connection", (socket) => {
     data['not_read_chat'] = result[0]['not_read_chat']
     data['room_id'] = data['FK_chattings_rooms'];
     socket.to(data.room_id).emit("receive_message", data);
-  
+    
+    // 모든 수신자에게 발송
+    data['not_read'] = 0;
+    socket.to(data.room_id).emit("read_message", data);
 
     con.release();
     console.log("ok");
   });
+  
+  socket.on("read_mmmm", async (data) => {
+    console.log("read mmmmmm: ", data);
+    socket.to(data.room_id).emit("reload", data);
+  })
+
+  socket.on("read_aaaaaaaa", async (data) => {
+    console.log("read_aaaaaaaa: ", data);
+    socket.to(data['room_id']).emit("reload2");
+  })
 });
+
 
 app.post("/interview", (req, res, next) => {
   const interviewId = req.body["interviewId"];

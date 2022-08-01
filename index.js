@@ -20,10 +20,10 @@ const chattingRouter = require("./routes/chatting");
 /****************************************/
 /* production mode */
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "./build")));
+  app.use(express.static(path.join(__dirname, "../build")));
 
   app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "./build", "index.html"));
+    res.sendFile(path.join(__dirname, "../build", "index.html"));
   });
 }
 /* console.log depth에 필요 */
@@ -37,7 +37,7 @@ const options = {
 };
 const geocoder = nodeGeocoder(options);
 
-const pool = require("./routes/function");
+const pool = require("./util/function");
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
@@ -126,10 +126,11 @@ io.on("connection", (socket) => {
 
   socket.on("send_message", async (data) => {
     console.log("11111", data);
-    socket.to(data.room_id).emit("receive_message", data);
+    
     delete data["caller_name"];
     const con = await pool.getConnection(async (conn) => conn);
-    const sql = `INSERT INTO chattings SET ?`;
+    const sql = `INSERT INTO chattings 
+                 SET ?`;
     let date = new Date();
     let sec = date.getSeconds().toString();
     if (sec.length === 1) sec = "0" + sec;
@@ -138,20 +139,54 @@ io.on("connection", (socket) => {
     data["updatedAt"] = data["createdAt"];
 
     data["FK_chattings_rooms"] = data["room_id"];
+    data["not_read"] = 1;
     delete data["room_id"];
     delete data["time"];
 
     await con.query(sql, data);
 
     /* 2. room 테이블의 last_chat, updatedAt 업데이트 */
-    const sql2 = `UPDATE rooms SET last_chat=?, updatedAt=? WHERE room_id=?`;
+    const sql2 = `UPDATE rooms 
+                  SET last_chat=?, updatedAt=? 
+                  WHERE room_id=?`;
     await con.query(sql2, [
       data["message"],
       data["createdAt"],
       data["FK_chattings_rooms"],
     ]);
-    con.release();
 
+    /* 3. room_participant_lists 테이블의 not_read_chat, last_chatting_id, updatedAt 업데이트 */
+    // last_chatting_id 가져오기
+    const sql3 = `SELECT chatting_id 
+                  FROM chattings
+                  WHERE FK_chattings_rooms=? 
+                  order by chatting_id desc
+                  LIMIT 1`
+    const [last_chatting_id] = await con.query(sql3, data['FK_chattings_rooms']);
+
+    // 3-1. not_read_chat update
+    const sql4 = `UPDATE room_participant_lists 
+                  SET not_read_chat=not_read_chat+1
+                  WHERE FK_room_participant_lists_rooms=? AND user_type!='${data['send_user_type']}'`;
+    await con.query(sql4, [data['FK_chattings_rooms']]);
+
+    // 3-2. last_chatting_id, updatedAt update
+    const sql5 = `UPDATE room_participant_lists 
+                  SET last_chatting_id=?, updatedAt=?
+                  WHERE FK_room_participant_lists_rooms=?`;
+    await con.query(sql5, [last_chatting_id[0]['chatting_id'], data['createdAt'], data['FK_chattings_rooms']]);
+
+    const sql6 = `SELECT not_read_chat
+                  FROM room_participant_lists
+                  WHERE FK_room_participant_lists_rooms='${data['FK_chattings_rooms']}' AND user_type!='${data['send_user_type']}'`
+    const [result] = await con.query(sql6);
+    console.log('not read chat: ', result[0]['not_read_chat']);
+    data['not_read_chat'] = result[0]['not_read_chat']
+    data['room_id'] = data['FK_chattings_rooms'];
+    socket.to(data.room_id).emit("receive_message", data);
+  
+
+    con.release();
     console.log("ok");
   });
 });
@@ -179,8 +214,8 @@ app.use("/chatting", chattingRouter);
 
 /* 일정 주기로 실행되며 DB 업데이트 실행 */
 let timers = require("./timer");
-
 timers.job();
+timers.interview();
 
 server.listen(PORT, () => {
   console.log(`server running on ${PORT}`);

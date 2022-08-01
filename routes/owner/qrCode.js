@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const qrCodeRouter = Router();
-const pool = require('../function');
+const pool = require('../../util/function');
 
  
 /* 사장님 사장님 최저시급 설정 페이지 */
@@ -16,9 +16,9 @@ data form
 // // 이거 하기 전에 들어온 데이터가 정확한지 체크하는 과정이 필요
 qrCodeRouter.post("/", async (req, res) => {
     console.log('req: ', req.body);
-    const con = await pool.getConnection(async (conn) => conn);
-    let success = '';
     try {
+        const con = await pool.getConnection(async (conn) => conn);
+        let success = '';
         /* 1. 들어온 시간부터 파싱해서 시간대 정하고 */
         let owner_id = req.body['owner_id'];
         let worker_id = req.body['worker_id'];

@@ -1,7 +1,8 @@
 const { Router } = require('express');
 const angelRouter = Router();
 
-const pool = require('../function');
+const pool = require('../../util/function');
+const getDist = require('../../util/getDist');
 const push_noti = require('../push');
 // const push_angel = require('../');
 // const stop_call = require('../owner/angel');
@@ -14,7 +15,7 @@ const push_noti = require('../push');
     'worker_id' : 17
   } 
 */
-  angelRouter.get('/info', async (req, res) => { 
+angelRouter.get('/info', async (req, res) => { 
     console.log(req.query)
     const con = await pool.getConnection(async conn => conn);
   
@@ -54,7 +55,7 @@ const push_noti = require('../push');
       console.log('type: ', type);
 
       /* 3. 거리계산 해서 res */
-      let dist = getDistance(store_info[0]['latitude'], store_info[0]['longitude'], worker_info[0]['latitude'], worker_info[0]['longitude']);
+      let dist = getDist.getDistance(store_info[0]['latitude'], store_info[0]['longitude'], worker_info[0]['latitude'], worker_info[0]['longitude']);
   
       let result = {
         'store_name': store_info[0]['name'],
@@ -74,7 +75,7 @@ const push_noti = require('../push');
     }
     catch{
       con.release();
-      res.send('error-worker/angel/info');
+      res.send('error');
     }  
   })
 
@@ -150,7 +151,7 @@ angelRouter.post('/accept', async (req, res) => {
   } 
   catch{
     con.release();
-    res.send('error-worker/angel/accept');
+    res.send('error');
   }    
 })
   
@@ -159,125 +160,28 @@ module.exports = angelRouter;
 
 /************************ function *************************/
 
-// async function getStoreIdByOwnerId (req, res, next) {
-//     console.log(req.body)
-//     const con = await pool.getConnection(async conn => conn);
+//   /* 두 개의 좌표 간 거리 구하기 */
+// function getDistance(lat1, lon1, lat2, lon2) {
+//     if ((lat1 == lat2) && (lon1 == lon2)) return 0;
   
-//     try {
-//       const sql = "SELECT store_id FROM stores WHERE FK_stores_owners=?";
-//       const [result] = await con.query(sql, req.body['owner_id']);
-//       console.log(result);
-//       req.body['store_id'] = result[0]['store_id'];
-//       con.release();
-//       next();
-//     }
-//     catch {
-//       console.log('error')
-//       res.send('error');
-//     }
-//   }
-
-// /* type으로 jobs 테이블에서 job_id 가져오기 */
-// async function getJobIdByType(req, res, next) {
-//     const con = await pool.getConnection(async conn => conn);
+//     let radLat1 = Math.PI * lat1 / 180;
+//     let radLat2 = Math.PI * lat2 / 180;
   
-//     try {
-//       const sql = "SELECT job_id FROM jobs WHERE type=?";
-//       const [result] = await con.query(sql, req.body['type']);
-//       console.log(result);
-//       req.body['job_id'] = result[0]['job_id'];
-//       con.release();
-//       next();
-//     }
-//     catch {
-//       res.send('error');
-//     }
-//   }
-
-/* owner_id로 stores 테이블에서 store id 가져오기 */
-async function getStoreIdByOwnerId (req, res) {
-    const con = await pool.getConnection(async conn => conn);
+//     let theta = lon1 - lon2;
+//     let radTheta = Math.PI * theta / 180;
+//     let dist = Math.sin(radLat1) * Math.sin(radLat2) + Math.cos(radLat1) * Math.cos(radLat2) * Math.cos(radTheta);
   
-    try {
-      const sql = "SELECT store_id FROM stores WHERE FK_stores_owners=?";
-      const [result] = await con.query(sql, req.body['owner_id']);
-      con.release();
-      const store_id = result[0]['store_id'];
-      return store_id;
-    //   next();
-    }
-    catch {
-      res.send('error-angel/call-getStoreIdByOwnerId');
-    }
-  }
-
-/* type으로 jobs 테이블에서 job_id 가져오기 */
-async function getJobIdByType(req, res) {
-    const con = await pool.getConnection(async conn => conn);
-  
-    try {
-      const sql = "SELECT job_id FROM jobs WHERE type=?";
-      const [result] = await con.query(sql, req.body['type']);
-      con.release();
-      const job_id = result[0]['job_id'];
-      return job_id;
-      next();
-    }
-    catch {
-      res.send('error-angel/call-getJobIdByType');
-    }
-  }
-
-
-/* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00 00:00:00'형식으로 변환하여 리턴 */
-function masageDateToYearMonthDayHourMinSec(date_timestamp) {
-    let date = new Date(date_timestamp);
-    let hour = date.getHours().toString();
-    let min = date.getMinutes().toString();
-    let sec = date.getSeconds().toString();
-  
-    if (hour.length === 1) hour = '0'+hour
-    if (min.length === 1) min = '0'+min
-    if (sec.length === 1) sec = '0'+sec
-  
-    return (masageDateToYearMonthDay(date_timestamp)+' '+hour+':'+min+':'+sec);
-  }
-
-/* '2022-08-20 00:00:000Z' 형식의 input을 '0000-00-00'형식으로 변환하여 리턴 */
-function masageDateToYearMonthDay(date_timestamp) {
-    let date = new Date(date_timestamp);
-    let year = date.getFullYear().toString();
-    let month = (date.getMonth() + 1).toString();
-    let day = date.getDate().toString();
+//     if (dist > 1) dist = 1;
     
-    if (month.length === 1) month = '0'+month;
-    if (day.length === 1) day = '0'+day;
+//     dist = Math.acos(dist);
+//     dist = dist * 180 / Math.PI;
+//     dist = dist * 60 * 1.1515 * 1.609344 * 1000;
+  
+//     if (dist < 100) dist = Math.round(dist / 10) * 10;
+//     else dist = Math.round(dist / 100) * 100;
     
-    return (year+'-'+month+'-'+day);
-  }
-
-  /* 두 개의 좌표 간 거리 구하기 */
-function getDistance(lat1, lon1, lat2, lon2) {
-    if ((lat1 == lat2) && (lon1 == lon2)) return 0;
-  
-    let radLat1 = Math.PI * lat1 / 180;
-    let radLat2 = Math.PI * lat2 / 180;
-  
-    let theta = lon1 - lon2;
-    let radTheta = Math.PI * theta / 180;
-    let dist = Math.sin(radLat1) * Math.sin(radLat2) + Math.cos(radLat1) * Math.cos(radLat2) * Math.cos(radTheta);
-  
-    if (dist > 1) dist = 1;
-    
-    dist = Math.acos(dist);
-    dist = dist * 180 / Math.PI;
-    dist = dist * 60 * 1.1515 * 1.609344 * 1000;
-  
-    if (dist < 100) dist = Math.round(dist / 10) * 10;
-    else dist = Math.round(dist / 100) * 100;
-    
-    return dist;
-  }
+//     return dist;
+// }
 
 
 

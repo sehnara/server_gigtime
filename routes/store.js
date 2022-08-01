@@ -1,16 +1,7 @@
 const { Router } = require("express");
 const storeerRouter = Router();
-const mysql = require("mysql2/promise");
-const nodeGeocoder = require("node-geocoder");
-
-/* 구글 map api */
-const options = {
-  provider: "google",
-  apiKey: "AIzaSyAHZxHAkDSHoI-lJDCg5YfO7bLCFiRBpaU", // 요놈 넣어만 주면 될듯?
-};
-const geocoder = nodeGeocoder(options);
-
-const pool = require("./function");
+const pool = require("../util/function");
+const getDist = require("../util/getDist");
 
 /* 면접 가능한 매장 정보를 return (지정 거리 이내) 
   data form === 
@@ -53,7 +44,7 @@ storeerRouter.post("/list", async (req, res) => {
     }
   } catch {
     con.release();
-    res.send("error-store/list");
+    res.send("error");
   }
 });
 
@@ -90,22 +81,27 @@ storeerRouter.post("/list", async (req, res) => {
     'FK_stores_owners': 2, 
     'location': '서울시 관악구 성현동'
   } */
-storeerRouter.post("/address/update", getPos, async (req, res) => {
+storeerRouter.post("/address/update", async (req, res) => {
   const con = await pool.getConnection(async (conn) => conn);
-  const sql =
-    "UPDATE stores SET address=?, latitude=?, longitude=? WHERE FK_stores_owners=?";
   try {
+    const location = await getDist.getPos(req.body['location']);
+    req.body["latitude"] = location[0];
+    req.body["longitude"] = location[1];
+
+    const sql =
+      "UPDATE stores SET address=?, latitude=?, longitude=? WHERE FK_stores_owners=?";
+
     await con.query(sql, [
-      req.body["location"],
-      req.body["latitude"],
-      req.body["longitude"],
-      req.body["FK_stores_owners"],
+    req.body["location"],
+    req.body["latitude"],
+    req.body["longitude"],
+    req.body["FK_stores_owners"],
     ]);
     con.release();
     res.send("success");
   } catch {
     con.release();
-    res.send("error-store/address/update");
+    res.send("error");
   }
 });
 
@@ -123,7 +119,7 @@ function getStore(latitude, longitude, range, stores_info) {
   /* 이렇게 짜면 너무 너무 비효율적이다 */
   /* db 구조를 바꿔야 하나? 아니면, 탐색 방식을 개선? */
   for (let i = 0; i < n; i++) {
-    tmp = getDistance(
+    tmp = getDist.getDistance(
       latitude,
       longitude,
       stores_info[i]["latitude"],
@@ -137,37 +133,37 @@ function getStore(latitude, longitude, range, stores_info) {
   return answer;
 }
 
-/* 두 개의 좌표 간 거리 구하기 */
-function getDistance(lat1, lon1, lat2, lon2) {
-  if (lat1 == lat2 && lon1 == lon2) return 0;
+// /* 두 개의 좌표 간 거리 구하기 */
+// function getDistance(lat1, lon1, lat2, lon2) {
+//   if (lat1 == lat2 && lon1 == lon2) return 0;
 
-  let radLat1 = (Math.PI * lat1) / 180;
-  let radLat2 = (Math.PI * lat2) / 180;
+//   let radLat1 = (Math.PI * lat1) / 180;
+//   let radLat2 = (Math.PI * lat2) / 180;
 
-  let theta = lon1 - lon2;
-  let radTheta = (Math.PI * theta) / 180;
-  let dist =
-    Math.sin(radLat1) * Math.sin(radLat2) +
-    Math.cos(radLat1) * Math.cos(radLat2) * Math.cos(radTheta);
+//   let theta = lon1 - lon2;
+//   let radTheta = (Math.PI * theta) / 180;
+//   let dist =
+//     Math.sin(radLat1) * Math.sin(radLat2) +
+//     Math.cos(radLat1) * Math.cos(radLat2) * Math.cos(radTheta);
 
-  if (dist > 1) dist = 1;
+//   if (dist > 1) dist = 1;
 
-  dist = Math.acos(dist);
-  dist = (dist * 180) / Math.PI;
-  dist = dist * 60 * 1.1515 * 1.609344 * 1000;
+//   dist = Math.acos(dist);
+//   dist = (dist * 180) / Math.PI;
+//   dist = dist * 60 * 1.1515 * 1.609344 * 1000;
 
-  if (dist < 100) dist = Math.round(dist / 10) * 10;
-  else dist = Math.round(dist / 100) * 100;
+//   if (dist < 100) dist = Math.round(dist / 10) * 10;
+//   else dist = Math.round(dist / 100) * 100;
 
-  return dist;
-}
+//   return dist;
+// }
 
-/* 두 좌표 간 거리 구하기 */
-async function getPos(req, res, next) {
-  const regionLatLongResult = await geocoder.geocode(req.body["location"]);
-  const Lat = regionLatLongResult[0].latitude; //위도
-  const Long = regionLatLongResult[0].longitude; //경도
-  req.body["latitude"] = Lat;
-  req.body["longitude"] = Long;
-  next();
-}
+// /* 두 좌표 간 거리 구하기 */
+// async function getPos(req, res, next) {
+//   const regionLatLongResult = await geocoder.geocode(req.body["location"]);
+//   const Lat = regionLatLongResult[0].latitude; //위도
+//   const Long = regionLatLongResult[0].longitude; //경도
+//   req.body["latitude"] = Lat;
+//   req.body["longitude"] = Long;
+//   next();
+// }

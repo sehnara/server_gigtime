@@ -126,7 +126,7 @@ io.on("connection", (socket) => {
 
   socket.on("send_message", async (data) => {
     console.log("11111", data);
-    socket.to(data.room_id).emit("receive_message", data);
+    
     delete data["caller_name"];
     const con = await pool.getConnection(async (conn) => conn);
     const sql = `INSERT INTO chattings 
@@ -176,10 +176,34 @@ io.on("connection", (socket) => {
                   WHERE FK_room_participant_lists_rooms=?`;
     await con.query(sql5, [last_chatting_id[0]['chatting_id'], data['createdAt'], data['FK_chattings_rooms']]);
 
+    const sql6 = `SELECT not_read_chat
+                  FROM room_participant_lists
+                  WHERE FK_room_participant_lists_rooms='${data['FK_chattings_rooms']}' AND user_type!='${data['send_user_type']}'`
+    const [result] = await con.query(sql6);
+    console.log('not read chat: ', result[0]['not_read_chat']);
+    data['not_read_chat'] = result[0]['not_read_chat']
+    data['room_id'] = data['FK_chattings_rooms'];
+    socket.to(data.room_id).emit("receive_message", data);
+    
+    // 모든 수신자에게 발송
+    data['not_read'] = 0;
+    socket.to(data.room_id).emit("read_message", data);
+
     con.release();
     console.log("ok");
   });
+  
+  socket.on("read_mmmm", async (data) => {
+    console.log("read mmmmmm: ", data);
+    socket.to(data.room_id).emit("reload", data);
+  })
+
+  socket.on("read_aaaaaaaa", async (data) => {
+    console.log("read_aaaaaaaa: ", data);
+    socket.to(data['room_id']).emit("reload2");
+  })
 });
+
 
 app.post("/interview", (req, res, next) => {
   const interviewId = req.body["interviewId"];
@@ -204,8 +228,8 @@ app.use("/chatting", chattingRouter);
 
 /* 일정 주기로 실행되며 DB 업데이트 실행 */
 let timers = require("./timer");
-
 timers.job();
+timers.interview();
 
 server.listen(PORT, () => {
   console.log(`server running on ${PORT}`);

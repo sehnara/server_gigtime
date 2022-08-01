@@ -52,7 +52,7 @@ suggestionRouter.post('/', async (req, res) => {
                       AND B.FK_orders_stores IN
                       (SELECT store_id FROM stores WHERE store_id IN 
                         (SELECT FK_qualifications_stores FROM qualifications 
-                          WHERE FK_qualifications_workers=?));   `;
+                          WHERE FK_qualifications_workers=?));`;
       const [result] = await con.query(sql, [date, new_times, type_result[0]['job_id'], req.body['min_price'], req.body['worker_id']]);
         // console.log('모든 개수: ' + result.length);
       let value = await suggestion(req.body['worker_id'], result, new_times);

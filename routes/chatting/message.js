@@ -108,6 +108,7 @@ messageRouter.use('/save', async (req, res) => {
 
 /* 1. 안 읽은 메시지가 몇 갠지 가져오기 */
 messageRouter.get('/loading', async (req, res, next) => {
+
     const con = await pool.getConnection(async conn => conn);
     console.log(req.query)
 
@@ -150,6 +151,7 @@ messageRouter.use('/loading', async (req, res, next) => {
 /* message client에 send */
 messageRouter.use('/loading', async (req, res) => {
     console.log(req.query.room_id);
+    console.log(req.query.cursor);
 
     const con = await pool.getConnection(async conn => conn);
     const sql = `
@@ -157,7 +159,7 @@ messageRouter.use('/loading', async (req, res) => {
     FROM chattings A
     INNER JOIN owners B ON A.send_user_id = B.owner_id
     INNER JOIN workers C ON A.send_user_id = C.worker_id
-    WHERE chatting_id<? AND FK_chattings_rooms=? ORDER BY chatting_id DESC LIMIT 100`
+    WHERE chatting_id<? AND FK_chattings_rooms=? ORDER BY chatting_id DESC LIMIT 10`
     
     let cursor = Number(req.query.cursor) || 9999999999;
     const [result] = await con.query(sql, [cursor, req.query.room_id]);

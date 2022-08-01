@@ -26,7 +26,7 @@ workRouter.post('/', async (req, res, next) => {
         let order_ids = Array();
         for (let i = 0; i < result.length; i++) order_ids.push(result[i]['order_id']);
         req.body['order_ids'] = order_ids;
-        console.log(req.body);
+        // console.log(req.body);
         con.release();
         next();
     }
@@ -48,7 +48,7 @@ workRouter.use('/', async (req, res, next) => {
                      WHERE FK_hourlyorders_orders IN (${req.body['order_ids']})`;
         const [result] = await con.query(sql);
         req.body['hourly_orders'] = result;
-        console.log(result.length);
+        // console.log(result.length);
         con.release();
         next();
     }
@@ -90,7 +90,17 @@ workRouter.use('/', async (req, res, next) => {
                 masageDate.masageDateToHour(tmp['start_time']) + ',' + tmp['price'].toString() + ',' + tmp['name'] + ',' + tmp['hourlyorders_id']
             );
         }
-        console.log(send_data);
+
+
+        send_data.sort(function(a, b) {
+            var date_A = new Date(a[0]);
+            var date_B = new Date(b[0]);
+
+            if (date_A < date_B) return -1;
+            if (date_A > date_B) return 1;
+            return 0;
+        })
+        // console.log(send_data);        
         res.send(send_data);
     }
     catch{

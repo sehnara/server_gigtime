@@ -197,7 +197,7 @@ mypageRouter.use("/myStore", async (req, res) => {
     }
   
     /* result에 최종 send 형태로 담았음 */
-    console.log(result);
+    // console.log(result);
     con.release();
     res.send(result);
   }
@@ -275,7 +275,7 @@ mypageRouter.post('/interview', async (req, res) => {
     };
     // console.log(response);
     con.release();
-    console.log(response);
+    // console.log(response);
     res.send(response);
   }
   catch{

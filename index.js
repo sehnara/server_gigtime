@@ -38,6 +38,8 @@ const options = {
 const geocoder = nodeGeocoder(options);
 
 const pool = require("./util/function");
+const push_interview = require("./util/push_interview");
+
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
@@ -56,7 +58,7 @@ const maximum = 2;
 io.on("connection", (socket) => {
   socket.on("join_room", (data) => {
     if (users[data.room]) {
-      const length = users[data.room].length;
+      const length = users[data.room].length;      
       if (length === maximum) {
         socket.to(socket.id).emit("room_full");
         return;
@@ -64,6 +66,7 @@ io.on("connection", (socket) => {
       users[data.room].push({ id: socket.id });
     } else {
       users[data.room] = [{ id: socket.id }];
+      push_interview.push_worker(data.room, '화상면접 개설', '들어오쎄용');
     }
     socketToRoom[socket.id] = data.room;
 

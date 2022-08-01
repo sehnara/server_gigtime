@@ -100,7 +100,7 @@ showRouter.use("/hourly_orders", async (req, res, next) => {
       // 유효한 매장
 
       for (let j = 0; j < orders.length; j++) {
-        const sql2 = `SELECT A.hourlyorders_id, A.FK_hourlyorders_workers, A.work_date, A.start_time, B.order_id, B.description, B.min_price, C.store_id, C.FK_stores_owners, C.name, C.address, C.latitude, C.longitude, C.minimum_wage, D.job_id, D.type 
+        const sql2 = `SELECT A.hourlyorders_id, A.FK_hourlyorders_workers, A.work_date, A.start_time, B.order_id, B.description, B.min_price, C.store_id, C.FK_stores_owners, C.name, C.address, C.latitude, C.longitude, C.minimum_wage, C.background_image, D.job_id, D.type 
                       FROM hourly_orders A
                       INNER JOIN orders B ON A.FK_hourlyorders_orders=B.order_id
                       INNER JOIN stores C ON B.FK_orders_stores=C.store_id

@@ -8,7 +8,7 @@ admin.initializeApp({
   credential: admin.credential.cert(serAccount),
 });
 
-function push_noti(target_token, send_title, send_body){
+async function push_noti(target_token, send_title, send_body){
     
     console.log('start');
     let message = {
@@ -19,7 +19,7 @@ function push_noti(target_token, send_title, send_body){
         },
         token: target_token
     }
-    admin.messaging()
+    await admin.messaging()
         .send(message)
         .then(function (res){
             console.log('successfully : ', res);

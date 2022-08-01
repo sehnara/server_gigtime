@@ -193,13 +193,11 @@ io.on("connection", (socket) => {
     console.log("ok");
   });
   
-  socket.on("read_mmmm", async (data) => {
-    console.log("read mmmmmm: ", data);
+  socket.on("read_ok", async (data) => {
     socket.to(data.room_id).emit("reload", data);
   })
 
-  socket.on("read_aaaaaaaa", async (data) => {
-    console.log("read_aaaaaaaa: ", data);
+  socket.on("read_that", async (data) => {
     socket.to(data['room_id']).emit("reload2");
   })
 });

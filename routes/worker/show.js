@@ -78,74 +78,80 @@ showRouter.use("/hourly_orders", async (req, res, next) => {
   let store_list = req.body["store_list"];
   let store_ids = req.body["store_ids"];
   let store_ids_idx = store_ids.indexOf(Number(req.body["cursor"])) + 1 || 0;
-  const sql = `SELECT order_id, FK_orders_jobs AS job_id, description, min_price 
-                 FROM orders 
-                 WHERE FK_orders_stores=? AND status=0`;
-  // [ 정상적 형태 ]
-  // "name": "보리누리",
-  // "distance": 3991000,
-  // "types": ["카운터", "청소"],
-  // "orders": [
-  //     { "order_id":5, "type":"카운터", "price":10000, "work_date": "2022-08-20" },
-  //     { ... }
-  // ]
-  let count = 0;
-  // let store_orders = new Array();
-  let valid_hourly_orders = new Array();
-  for (let i = store_ids_idx; i < store_ids.length; i++) {
-    if (count === 5) break;
+  try {
+    const sql = `SELECT order_id, FK_orders_jobs AS job_id, description, min_price 
+                  FROM orders 
+                  WHERE FK_orders_stores=? AND status=0`;
+    // [ 정상적 형태 ]
+    // "name": "보리누리",
+    // "distance": 3991000,
+    // "types": ["카운터", "청소"],
+    // "orders": [
+    //     { "order_id":5, "type":"카운터", "price":10000, "work_date": "2022-08-20" },
+    //     { ... }
+    // ]
+    let count = 0;
+    // let store_orders = new Array();
+    let valid_hourly_orders = new Array();
+    for (let i = store_ids_idx; i < store_ids.length; i++) {
+      if (count === 5) break;
 
-    const [orders] = await con.query(sql, store_ids[i]);
-    if (orders.length > 0) {
-      // 유효한 매장
+      const [orders] = await con.query(sql, store_ids[i]);
+      if (orders.length > 0) {
+        // 유효한 매장
 
-      for (let j = 0; j < orders.length; j++) {
-        const sql2 = `SELECT A.hourlyorders_id, A.FK_hourlyorders_workers, A.work_date, A.start_time, B.order_id, B.description, B.min_price, C.store_id, C.FK_stores_owners, C.name, C.address, C.latitude, C.longitude, C.minimum_wage, C.background_image, D.job_id, D.type 
-                      FROM hourly_orders A
-                      INNER JOIN orders B ON A.FK_hourlyorders_orders=B.order_id
-                      INNER JOIN stores C ON B.FK_orders_stores=C.store_id
-                      INNER JOIN jobs D ON B.FK_orders_jobs=D.job_id
-                      WHERE FK_hourlyorders_orders=${orders[j]["order_id"]}`;
-        const [hourly_orders] = await con.query(sql2);
-        // console.log(hourly_orders)
-        // orders[j]["hourly_orders"] = hourly_orders;
-        valid_hourly_orders = valid_hourly_orders.concat(hourly_orders)        
+        for (let j = 0; j < orders.length; j++) {
+          const sql2 = `SELECT A.hourlyorders_id, A.FK_hourlyorders_workers, A.work_date, A.start_time, B.order_id, B.description, B.min_price, C.store_id, C.FK_stores_owners, C.name, C.address, C.latitude, C.longitude, C.minimum_wage, C.background_image, D.job_id, D.type 
+                        FROM hourly_orders A
+                        INNER JOIN orders B ON A.FK_hourlyorders_orders=B.order_id
+                        INNER JOIN stores C ON B.FK_orders_stores=C.store_id
+                        INNER JOIN jobs D ON B.FK_orders_jobs=D.job_id
+                        WHERE FK_hourlyorders_orders=${orders[j]["order_id"]}`;
+          const [hourly_orders] = await con.query(sql2);
+          // console.log(hourly_orders)
+          // orders[j]["hourly_orders"] = hourly_orders;
+          valid_hourly_orders = valid_hourly_orders.concat(hourly_orders);
+        }
+        // store_orders.push({
+        //   store_id: store_ids[i],
+        //   name: store_list[i]["name"],
+        //   address: store_list[i]["address"],
+        //   distance: req.body["distance"],
+        //   types: [],
+        //   orders: orders,
+        // });
+        // console.log(store_orders[count]['orders'])
+        // console.log('-----')
+        count += 1;
       }
-      // store_orders.push({
-      //   store_id: store_ids[i],
-      //   name: store_list[i]["name"],
-      //   address: store_list[i]["address"],
-      //   distance: req.body["distance"],
-      //   types: [],
-      //   orders: orders,
-      // });
-      // console.log(store_orders[count]['orders'])
-      // console.log('-----')
-      count += 1;
     }
+
+    const data = masage_data(
+      req.body["latitude"],
+      req.body["longitude"],
+      req.body["range"],
+      valid_hourly_orders
+    );
+    console.log(data);
+    /* 4. store의 job을 모두 가져오자 */
+    // const sql3 = `SELECT B.type
+    //                 FROM store_job_lists A
+    //                 INNER JOIN jobs B ON A.FK_store_job_lists_jobs = B.job_id
+    //                 WHERE A.FK_store_job_lists_stores=?`;
+
+    // for (let k = 0; k < store_orders.length; k++) {
+    //   const [jobs] = await con.query(sql3, store_orders[k]["store_id"]);
+    //   for (let l = 0; l < jobs.length; l++) {
+    //     store_orders[k]["types"].push(jobs[l]["type"]);
+    //   }
+    // }
+    con.release();
+    if (data.length === 0) res.send("notFound");
+    else res.send(data);
+  } catch {
+    res.send("error");
   }
 
-  const data = masage_data(
-    req.body["latitude"],
-    req.body["longitude"],
-    req.body["range"],
-    valid_hourly_orders
-  );
-  console.log(data);
-  /* 4. store의 job을 모두 가져오자 */
-  // const sql3 = `SELECT B.type
-  //                 FROM store_job_lists A
-  //                 INNER JOIN jobs B ON A.FK_store_job_lists_jobs = B.job_id
-  //                 WHERE A.FK_store_job_lists_stores=?`;
-
-  // for (let k = 0; k < store_orders.length; k++) {
-  //   const [jobs] = await con.query(sql3, store_orders[k]["store_id"]);
-  //   for (let l = 0; l < jobs.length; l++) {
-  //     store_orders[k]["types"].push(jobs[l]["type"]);
-  //   }
-  // }
-  con.release();
-  res.send(data);
   // res.send(store_orders);
 });
 

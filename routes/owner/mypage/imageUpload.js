@@ -27,8 +27,12 @@ imageUploadRouter.post(
   upload("background").single("background"),
   async (req, res) => {
     const con = await pool.getConnection(async (conn) => conn);
-    const url = req.file.key;
-    console.log(req.file);
+    let url;
+    if (req.file){
+      url = req.file.key;
+    }else{
+      url = "background/default_bg.png";
+    }
     const owner_id = req.body["id"];
     try {
       const sql = `UPDATE stores set background_image = "${url}" WHERE FK_stores_owners = ${owner_id}`;

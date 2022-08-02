@@ -25,7 +25,7 @@ let getJob = require("../../../util/getJob.js");
 
 /* 2. stores 테이블에서 owner_id로 name, address, store_id 가져오기 */
 employmentRouter.post("/button", async (req, res, next) => {
-  console.log(req.body);
+  console.log("??", req.body);
   const con = await pool.getConnection(async (conn) => conn);
 
   try {
@@ -35,38 +35,34 @@ employmentRouter.post("/button", async (req, res, next) => {
     const name = result[0]["name"];
     const address = result[0]["address"];
     const store_id = result[0]["store_id"];
-    
 
-  /* 3. store_job_lists 테이블에서 store_id로 FK_store_job_lists_jobs 모두 가져오기 */
+    /* 3. store_job_lists 테이블에서 store_id로 FK_store_job_lists_jobs 모두 가져오기 */
 
     const jobIds = await getJob.getJobIdByStoreId(store_id);
-    if(jobIds === -1){
-      throw 'error: getJobIdByStoreId returned -1';
+    if (jobIds === -1) {
+      throw "error: getJobIdByStoreId returned -1";
     }
     const types = await getJob.getTypeByJobId(jobIds);
-    if(types.length === 0){
-      throw 'error: types.length === 0';
+    if (types.length === 0) {
+      throw "error: types.length === 0";
+    } else if (types === -1) {
+      throw "error: getTypeByJobId returned -1";
     }
-    else if(types === -1){
-      throw 'error: getTypeByJobId returned -1';
-    }    
-    
+
     let body = {
-      "name": name,
-      "address": address,
-      "types": types
-    }
-    
+      name: name,
+      address: address,
+      types: types,
+    };
+
     con.release();
-    res.send(body);    
-  } catch(error) {
-    console.log('!!!err!!!',error);
+    res.send(body);
+  } catch (error) {
+    console.log("!!!err!!!", error);
     con.release();
     res.send("error");
   }
 });
-
-
 
 module.exports = employmentRouter;
 
@@ -105,7 +101,7 @@ module.exports = employmentRouter;
 // }
 
 // /* 배열에 담긴 job_id를 type으로 변환 */
-// /* 
+// /*
 //     input: [1, 2, 3, 4]
 //     return: ['청소', '빨래', '설거지', '서빙']
 //   */

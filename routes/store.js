@@ -112,7 +112,7 @@ module.exports = storeerRouter;
 /* worker가 설정한 반경 이내의 가게 정보를 return */
 function getStore(latitude, longitude, range, stores_info) {
   const n = stores_info.length;
-  console.log(stores_info);
+  // console.log(stores_info);
   let answer = new Array();
   let tmp = 0;
 

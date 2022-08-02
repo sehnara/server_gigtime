@@ -15,13 +15,13 @@ const push_noti = require('../push');
     'worker_id' : 17
   } 
 */
-angelRouter.get('/info', async (req, res) => { 
-    console.log(req.query)
+angelRouter.post('/info', async (req, res) => { 
+    console.log(req.body)
     const con = await pool.getConnection(async conn => conn);
   
     try{
-      const angel_id = req.query['angel_id'];
-      const worker_id = req.query['worker_id'];
+      const angel_id = req.body['angel_id'];
+      const worker_id = req.body['worker_id'];
     
       /* 1. angel 데이터 꺼내고 */
       const sql_angel = `select FK_angels_stores, FK_angels_workers, start_time, working_hours, price, FK_angels_jobs 

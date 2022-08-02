@@ -25,6 +25,7 @@ module.exports = showRouter;
 */
 /* 1. worker의 range를 가져오자 */
 showRouter.post("/hourly_orders", async (req, res, next) => {
+  console.log("cursor: ", req.body["cursor"]);
   const con = await pool.getConnection(async (conn) => conn);
   const sql =
     "SELECT `range`, latitude, longitude FROM workers WHERE worker_id=? LIMIT 1";
@@ -132,7 +133,7 @@ showRouter.use("/hourly_orders", async (req, res, next) => {
       req.body["range"],
       valid_hourly_orders
     );
-    console.log(data);
+    // console.log(data);
     /* 4. store의 job을 모두 가져오자 */
     // const sql3 = `SELECT B.type
     //                 FROM store_job_lists A

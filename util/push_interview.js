@@ -31,7 +31,7 @@ async function push_worker(interview_id, _title, _data){
     };
     
     console.log("push_noti");
-    await push_noti(push_token, title, info);
+    push_noti(push_token, title, info);
 
 }
 

@@ -136,7 +136,7 @@ angelRouter.post("/accept", async (req, res) => {
       result = "success";
     } else {
       /* 이미 만료된 요청 */
-      result = `It's over.. TㅅT`;
+      result = `fail`;
     }
 
     con.release();

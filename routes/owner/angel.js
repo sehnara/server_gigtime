@@ -180,19 +180,24 @@ angelRouter.post("/call", async (req, res) => {
       const [tokens] = await con.query(sql_token);
 
       let push_tokens = [];
+      let infos = [];
       for (let token of tokens) {
         push_tokens.push(token["token"]);
+        infos.push(
+          {
+            store_name,
+            angel_id,
+            worker_id:token["FK_permissions_workers"]
+          }
+        )
       }
 
       console.log(push_tokens);
+      console.log(infos);
 
       /* 3-3. tokens 로 push_angel() 호출 */
 
-      let info = {
-        store_name,
-        angel_id,
-      };
-      push_angel(push_tokens, info);
+      push_angel(push_tokens, infos);
       con.release();
 
       function tmp(a) {

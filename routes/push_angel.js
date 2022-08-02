@@ -8,32 +8,36 @@ const admin = require("firebase-admin");
 
 function push_angel(target_token, info) {
   console.log("start-angel");
-  let message = {
-    // "type": 'angel_call',
-    data: {
-      title: `알바천사 콜`,
-      // body: 'body string'
-      body: JSON.stringify(info),
-    },
-    tokens: target_token,
-    webpush: {
-      fcmOptions: {
-        link: "https://www.naver.com", // 로컬
-      },
-    },
-  };
-  console.log(message);
 
-  // let tmp = JSON.stringify(message);
-  admin
-    .messaging()
-    .sendMulticast(message)
-    .then(function (res) {
-      console.log("successfully : ", res);
-    })
-    .catch(function (err) {
-      console.log("error : ", err);
-    });
+  for (let i = 0; i < info.length; i++) {
+    let message = {
+      data: {
+        title: `알바천사 콜`,
+        body: JSON.stringify(info[i]),
+        sound: "default",
+      },
+      // tokens: target_token,
+      token: target_token[i],
+      // webpush: {
+      //   fcm_options: {
+      //     link: "https://naver.com", // 로컬
+      //   },
+      // },
+    };
+    console.log("message: ", message);
+
+    // let tmp = JSON.stringify(message);
+    admin
+      .messaging()
+      // .sendMulticast(message)
+      .send(message)
+      .then(function (res) {
+        console.log("successfully : ", res);
+      })
+      .catch(function (err) {
+        console.log("error : ", err);
+      });
+  }
   console.log("end-angel");
 }
 

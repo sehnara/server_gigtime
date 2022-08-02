@@ -206,7 +206,7 @@ angelRouter.post("/call", async (req, res) => {
             // console.log('3초');
             // console.log(angel_id)
             // stop_call(angel_id)
-          }, 10000);
+          }, 60000);
         }
         closure(a);
       }

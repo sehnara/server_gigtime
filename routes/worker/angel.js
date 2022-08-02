@@ -16,7 +16,7 @@ const push_noti = require('../push');
   } 
 */
 angelRouter.post('/info', async (req, res) => { 
-    console.log(req.body)
+    // console.log('angel_info(worker) req: ', req.body)
     const con = await pool.getConnection(async conn => conn);
   
     try{
@@ -68,7 +68,7 @@ angelRouter.post('/info', async (req, res) => {
         'dist': dist,
         'location': worker_info[0]['location']
       }
-      console.log(result);
+      // console.log('angel_result(worker) result: ', result);
       con.release();
       res.send(result);
 

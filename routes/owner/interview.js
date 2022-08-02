@@ -34,7 +34,7 @@ interviewRouter.post('/', async (req, res) => {
         // console.log(result_owner);
         const owner_name = result_owner[0]['name'];
     
-        const step = { 1: 'now', 2: 'wait', 3: 'will', 4: 'complete' };
+        const step = { 1: 'now', 2: 'wait', 3: 'will', 4: 'complete', 6: 'expired' };
     
         for (let i = 0; i < n; i++) {
             worker_id = result[i]['FK_interviews_workers'];
@@ -70,7 +70,7 @@ interviewRouter.post('/', async (req, res) => {
         }
     
         // res.send(dummy)
-        // console.log(cards);
+        console.log('cards: ',cards); 
         con.release();
         res.send(cards);
     }

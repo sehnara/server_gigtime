@@ -37,10 +37,13 @@ interviewRouter.post("/accept", async (req, res) => {
     // console.log(interview_id, value, typeof value);
     try {
         msg = "update state";
+        // 시연을 위한 흐름
+        // 원래는 2 -> 3 -> 1
+        // 지금은 2 -> 1 거절시에만 3
         if (value !== "true" && value !== true) {
             // 거절
             // console.log('거절', value);
-            const sql = `update interviews set state = 0, reject_flag = 1 where interview_id = ${interview_id};`;
+            const sql = `update interviews set state = 3, reject_flag = 1 where interview_id = ${interview_id};`;
             // const sql = `update interviews set state = 3, reject_flag = 1 where interview_id = ${interview_id};`;
             const [result] = await con.query(sql);
         } else {

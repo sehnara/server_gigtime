@@ -144,7 +144,7 @@ applyRouter.post("/load_interview", async (req, res) => {
             result.shift();
         }
 
-        // console.log(">>>>>>>>>>>>", result);
+        console.log(">>>>>>>>>>>>", result);
         // return result;
         con.release();
         res.send(result);

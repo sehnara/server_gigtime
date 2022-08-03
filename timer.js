@@ -46,7 +46,7 @@ module.exports = {
     },
     /* 매 정시마다 실행되며 orders 테이블 status 업데이트 */
     interview: async function () { 
-        schedule.scheduleJob('0 1 * * * *', async function() {
+        schedule.scheduleJob('0 0 * * * *', async function() {
             const con = await pool.getConnection(async conn => conn);
             let now = new Date();
             now_date = now.toISOString().split('T')[0];

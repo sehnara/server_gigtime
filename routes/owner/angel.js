@@ -81,26 +81,26 @@ angelRouter.post("/call", async (req, res) => {
     // end = new Date(end_hour);
     // console.log(start, end);
     start_date = start_hour.split("T")[0].split("-");
-    start_time = start_hour.split("T")[1].split(".")[0].split(":");
+    start_time = start_hour.split("T")[1].split(".")[0].split(":")[0];
     end_date = end_hour.split("T")[0].split("-");
-    end_time = end_hour.split("T")[1].split(".")[0].split(":");
+    end_time = end_hour.split("T")[1].split(".")[0].split(":")[0];
     console.log(start_date, start_time, end_date, end_time);
 
     let start = [
       start_date[0],
       start_date[1],
       start_date[2],
-      start_time[0],
-      start_time[1],
-      start_time[2],
+      start_time,
+      '00',
+      '00',
     ];
     let end = [
       end_date[0],
       end_date[1],
       end_date[2],
-      end_time[0],
-      end_time[1],
-      end_time[2],
+      end_time,
+      '00',
+      '00',
     ];
     console.log("start, end, hours: ", start, end);
     start = start.map((e) => Number(e));
@@ -121,7 +121,7 @@ angelRouter.post("/call", async (req, res) => {
     // console.log('start, end, hours: ',start,end, hours);
 
     let date = start_date.join("-");
-    let time = date + " " + start_time.join(":");
+    let time = date + " " + start_time + ":00:00";
 
     let price = req.body["price"];
 
@@ -182,14 +182,19 @@ angelRouter.post("/call", async (req, res) => {
       let push_tokens = [];
       let infos = [];
       for (let token of tokens) {
-        push_tokens.push(token["token"]);
-        infos.push(
-          {
-            store_name,
-            angel_id,
-            worker_id:token["FK_permissions_workers"]
-          }
-        )
+        // console.log("for token of tokens");
+        // console.log(token["token"]);
+        // console.log(typeof token["token"]);
+        if (token["token"]!=='null'){
+          push_tokens.push(token["token"]);
+          infos.push(
+            {
+              store_name,
+              angel_id,
+              worker_id:token["FK_permissions_workers"]
+            }
+          )
+        }
       }
 
       console.log(push_tokens);
@@ -200,12 +205,13 @@ angelRouter.post("/call", async (req, res) => {
       push_angel(push_tokens, infos);
       con.release();
 
+      
       function tmp(a) {
         function closure(arg) {
           /* 푸시보내고 10초 뒤에 모집종료 함수 호출 */
           /* 그전에 매칭되면 전역변수 갱신 및 모집종료*/
           /* 모집종료가면 flag 확인하고 종료 */
-
+          
           setTimeout(function () {
             stop_call(arg);
             // console.log('3초');
@@ -216,18 +222,19 @@ angelRouter.post("/call", async (req, res) => {
         closure(a);
       }
       tmp(angel_id);
-
+      
+      send_msg = "success";
       // setTimeout(()=>{console.log('3초')}, 10000);
       // setTimeout(stop_call, 3000, angel_id);
-      send_msg = "success";
     }
     if (send_flag === false) {
+      // console.log("여기", send_msg);
       res.send(send_msg);
       send_flag = true;
     }
   } catch {
     con.release();
-    console.log("catch");
+    console.log("catch"); 
     if (send_flag === false) {
       res.send("error");
     }

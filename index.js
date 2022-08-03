@@ -38,6 +38,7 @@ const options = {
 const geocoder = nodeGeocoder(options);
 
 const pool = require("./util/function");
+const push_interview = require("./util/push_interview");
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
@@ -63,7 +64,9 @@ io.on("connection", (socket) => {
       }
       users[data.room].push({ id: socket.id });
     } else {
+      console.log('혼자있음');
       users[data.room] = [{ id: socket.id }];
+      push_interview.push_worker(data.room, "화상면접 개설", "들어오쎄용");
     }
     socketToRoom[socket.id] = data.room;
 
@@ -126,7 +129,7 @@ io.on("connection", (socket) => {
 
   socket.on("send_message", async (data) => {
     console.log("11111", data);
-    
+
     delete data["caller_name"];
     const con = await pool.getConnection(async (conn) => conn);
     const sql = `INSERT INTO chattings 
@@ -161,49 +164,53 @@ io.on("connection", (socket) => {
                   FROM chattings
                   WHERE FK_chattings_rooms=? 
                   order by chatting_id desc
-                  LIMIT 1`
-    const [last_chatting_id] = await con.query(sql3, data['FK_chattings_rooms']);
+                  LIMIT 1`;
+    const [last_chatting_id] = await con.query(
+      sql3,
+      data["FK_chattings_rooms"]
+    );
 
     // 3-1. not_read_chat update
     const sql4 = `UPDATE room_participant_lists 
                   SET not_read_chat=not_read_chat+1
-                  WHERE FK_room_participant_lists_rooms=? AND user_type!='${data['send_user_type']}'`;
-    await con.query(sql4, [data['FK_chattings_rooms']]);
+                  WHERE FK_room_participant_lists_rooms=? AND user_type!='${data["send_user_type"]}'`;
+    await con.query(sql4, [data["FK_chattings_rooms"]]);
 
     // 3-2. last_chatting_id, updatedAt update
     const sql5 = `UPDATE room_participant_lists 
                   SET last_chatting_id=?, updatedAt=?
                   WHERE FK_room_participant_lists_rooms=?`;
-    await con.query(sql5, [last_chatting_id[0]['chatting_id'], data['createdAt'], data['FK_chattings_rooms']]);
+    await con.query(sql5, [
+      last_chatting_id[0]["chatting_id"],
+      data["createdAt"],
+      data["FK_chattings_rooms"],
+    ]);
 
     const sql6 = `SELECT not_read_chat
                   FROM room_participant_lists
-                  WHERE FK_room_participant_lists_rooms='${data['FK_chattings_rooms']}' AND user_type!='${data['send_user_type']}'`
+                  WHERE FK_room_participant_lists_rooms='${data["FK_chattings_rooms"]}' AND user_type!='${data["send_user_type"]}'`;
     const [result] = await con.query(sql6);
-    console.log('not read chat: ', result[0]['not_read_chat']);
-    data['not_read_chat'] = result[0]['not_read_chat']
-    data['room_id'] = data['FK_chattings_rooms'];
+    console.log("not read chat: ", result[0]["not_read_chat"]);
+    data["not_read_chat"] = result[0]["not_read_chat"];
+    data["room_id"] = data["FK_chattings_rooms"];
     socket.to(data.room_id).emit("receive_message", data);
-    
+
     // 모든 수신자에게 발송
-    data['not_read'] = 0;
+    data["not_read"] = 0;
     socket.to(data.room_id).emit("read_message", data);
 
     con.release();
     console.log("ok");
   });
-  
-  socket.on("read_mmmm", async (data) => {
-    console.log("read mmmmmm: ", data);
+
+  socket.on("read_ok", async (data) => {
     socket.to(data.room_id).emit("reload", data);
-  })
+  });
 
-  socket.on("read_aaaaaaaa", async (data) => {
-    console.log("read_aaaaaaaa: ", data);
-    socket.to(data['room_id']).emit("reload2");
-  })
+  socket.on("read_that", async (data) => {
+    socket.to(data["room_id"]).emit("reload2");
+  });
 });
-
 
 app.post("/interview", (req, res, next) => {
   const interviewId = req.body["interviewId"];
@@ -223,11 +230,11 @@ app.use("/owner", ownerRouter);
 app.use("/reserve", reserveRouter);
 app.use("/apply", applyRouter);
 app.use("/permission", permissionRouter);
-
 app.use("/chatting", chattingRouter);
 
 /* 일정 주기로 실행되며 DB 업데이트 실행 */
 let timers = require("./timer");
+const angelRouter = require("./routes/worker/angel");
 timers.job();
 timers.interview();
 

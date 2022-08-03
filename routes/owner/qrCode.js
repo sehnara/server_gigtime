@@ -16,8 +16,8 @@ data form
 // // 이거 하기 전에 들어온 데이터가 정확한지 체크하는 과정이 필요
 qrCodeRouter.post("/", async (req, res) => {
     console.log('req: ', req.body);
+    const con = await pool.getConnection(async (conn) => conn);
     try {
-        const con = await pool.getConnection(async (conn) => conn);
         let success = '';
         /* 1. 들어온 시간부터 파싱해서 시간대 정하고 */
         let owner_id = req.body['owner_id'];

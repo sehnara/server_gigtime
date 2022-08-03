@@ -1,6 +1,7 @@
 const { Router } = require("express");
 const applyRouter = Router();
 const pool = require("../util/function");
+const push_interview = require("../util/push_interview");
 
 // 면접신청 페이지 - 매장정보
 // store_id : 1
@@ -108,7 +109,7 @@ applyRouter.post("/load_interview", async (req, res) => {
         let yet = today.getHours();
         // console.log('yet',yet);
         times[n_day].splice(0, hours[yet] + 1);
-        console.log('yet',times);
+        // console.log('yet',times);
 
         for (day = n_day; day <= calendar[month]; day++) {
             month_str = String(month);
@@ -161,7 +162,7 @@ applyRouter.post("/load_interview", async (req, res) => {
 // 'store_id' : 1   // (가게id),
 applyRouter.post("/submit", async (req, res) => {
     const con = await pool.getConnection(async (conn) => conn);
-    console.log(req.body);
+    console.log('req: ',req.body);
     interview_date = req.body["interview_date"];
     interview_time = req.body["interview_time"];
     worker_id = req.body["worker_id"];
@@ -181,6 +182,8 @@ applyRouter.post("/submit", async (req, res) => {
 
         new_date = `${year}-${month_str}-${day_str}`;
 
+        console.log("new_date: ", new_date);
+        console.log("interview_date: ", interview_date);
         console.log("interview_time: ", interview_time);
         tmp = hours[interview_time] + 1;
         console.log("tmp: ", tmp);
@@ -190,18 +193,30 @@ applyRouter.post("/submit", async (req, res) => {
         console.log(check_result[0]);
         // let timeString = check_result[0]['request_date'].toLocaleString("en-US", {timeZone: "Asia/Seoul"});
         // console.log(check_result[0]['request_date']);
-        if (check_result[0]) {
-            // console.log('yes');
-            // response = '안됨. 다른면접있음.';
+        if (check_result[0]!==undefined) {
+            console.log('안됨');
+            response = '안됨. 다른면접있음.';
             con.release();
-            res.send("already");
+            // res.send("already");
+            res.send(response);
         } else {
             // console.log('no');
             const sql = `INSERT INTO interviews (FK_interviews_stores, FK_interviews_workers, 
                     request_date, interview_date, FK_interviews_interview_times, question) 
-                    VALUES (${store_id}, ${worker_id}, '${new_date}', '${interview_date}', '${tmp}', '${question}');`;
+                    VALUES (${store_id}, ${worker_id}, '${new_date}', '${interview_date}', ${tmp}, '${question}');`;
             const [result] = await con.query(sql);
+            
 
+            const sql_interview = `select last_insert_id() from interviews limit 1;`
+            const [interview] = await con.query(sql_interview);
+            
+            console.log('토큰찾기')
+            
+            let title = "면접 신청";
+            let data = "";
+            
+            await push_interview.push_owner(interview[0]['last_insert_id()'], title, data);
+            
             con.release();
             res.send("success"); // 메세지만
         }

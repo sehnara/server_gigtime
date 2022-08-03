@@ -251,6 +251,18 @@ function masage_data(latitude, longitude, range, data) {
   //     return 0;
   // })
 
+  for (let i = 0; i < databox.length; i++) {
+    databox[i]['key'].sort(function(a, b) {
+      var date_a = a[0];
+      var date_b = b[0];
+  
+      if (date_a < date_b) return -1;
+      if (date_a > date_b) return 1;
+      return 0;
+    })
+  }
+
+
   // console.log('마사지 data: ', databox);
   return databox;
 }

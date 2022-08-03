@@ -80,14 +80,40 @@ qrCodeRouter.post("/", async (req, res) => {
         const sql_worker = `select name from workers where worker_id = ${worker_id};`;
         const [worker_info] = await con.query(sql_worker);
          
-        let result = {
-            success: success,
-            name: worker_info[0]['name']
+
+        /* success일 때 owner_id 찾아서 push */
+        if (success==='success'){
+            const sql_token = `select FK_permissions_owners, token from permissions 
+                                where FK_permissions_owners = ${owner_id};`;
+            const [token] = await con.query(sql_token);
+    
+            let push_token = token[0]["token"];
+            console.log(push_token);
+            let title = `출석체크`;
+            let info = {
+                worker_name: worker_info[0]['name'],
+            };
+    
+            push_noti(push_token, title, info);
+            console.log("출석완료");
         }
 
+        let result = {
+            success,
+            name: worker_info[0]['name']
+        }
+        /* QR스캔 기기에서 보여주는 정보 */
         console.log(result);
         con.release();
         res.send(result);
+
+        /* 사장님 기기에 push 알림 */
+        console.log(result);
+        con.release();
+        res.send(result);
+
+        
+
     } 
     catch {
         console.log({success:"fail", name:""});

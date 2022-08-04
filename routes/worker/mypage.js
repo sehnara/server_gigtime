@@ -156,9 +156,15 @@ mypageRouter.post("/myStore", async (req, res, next) => {
       store_ids.push(result[i]["store_id"]);
     }
   
-    req.body["store_ids"] = store_ids;
-    con.release();
-    next(); 
+    if ( store_ids.length === 0){
+      con.release();
+      res.send('notFound');
+    }
+    else{
+      req.body["store_ids"] = store_ids;
+      con.release();
+      next(); 
+    }
   }
   catch{
     con.release();
@@ -197,7 +203,7 @@ mypageRouter.use("/myStore", async (req, res) => {
     }
   
     /* result에 최종 send 형태로 담았음 */
-    // console.log(result);
+    console.log('>>>result: ', result);
     con.release();
     res.send(result);
   }

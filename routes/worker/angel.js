@@ -105,35 +105,53 @@ angelRouter.post("/accept", async (req, res) => {
     const [owner] = await con.query(sql_owner);
     console.log("owner: ", owner);
     let owner_id = owner[0]["FK_stores_owners"];
+    // console.log("owner: ", owner_id);
+    // console.log("sta: ", status);
 
     if (status === 0) {
       /* 2. angel 테이블에 worker 추가 및 status 갱신 */
       const sql = `update angels set FK_angels_workers = ${worker_id}, status = 1 where angel_id = ${angel_id};`;
-      await con.query(sql);
-      // console.log('UPDATE');
+      
+      try{
+        await con.query(sql);
+        console.log('UPDATE');
 
-      /* 3. 모집종료, 사장님한테 push() 요청 */
-      const sql_token = `select FK_permissions_owners, token from permissions 
-      where FK_permissions_owners = ${owner_id};`;
-      const [token] = await con.query(sql_token);
+        /* 3. 모집종료, 사장님한테 push() 요청 */
+        const sql_token = `select FK_permissions_owners, token from permissions 
+        where FK_permissions_owners = ${owner_id};`;
+        const [token] = await con.query(sql_token);
+  
+        let push_token = token[0]["token"];
+        console.log(push_token);
+  
+        const sql_worker = `select name from workers where worker_id = ${worker_id};`;
+        const [worker] = await con.query(sql_worker);
+        let worker_name = worker[0]["name"];
+  
+        let title = `알바천사 결과`;
+        let info = {
+          result: "success",
+          angel_id: angel_id,
+          worker_name: worker_name,
+        };
+  
+        /* 3-3. tokens 로 push_angel() 호출 */
+        push_noti(push_token, title, info);
+        result = "success";
+      }
+      catch(error){
+        // console.log("error", error);
+        // console.log('>>>err: ', error.errno);
+        errCode = error.errno;
+        if(errCode===1062){
+          /* 같은 시간에 알바천사예약이 있는거 */
+          result = "already"
+        }
+        else{
+          result = "error"
+        }
+      }
 
-      let push_token = token[0]["token"];
-      console.log(push_token);
-
-      const sql_worker = `select name from workers where worker_id = ${worker_id};`;
-      const [worker] = await con.query(sql_worker);
-      let worker_name = worker[0]["name"];
-
-      let title = `알바천사 결과`;
-      let info = {
-        result: "success",
-        angel_id: angel_id,
-        worker_name: worker_name,
-      };
-
-      /* 3-3. tokens 로 push_angel() 호출 */
-      push_noti(push_token, title, info);
-      result = "success";
     } else {
       /* 이미 만료된 요청 */
       result = `fail`;

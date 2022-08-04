@@ -76,13 +76,13 @@ applyRouter.post("/load_interview", async (req, res) => {
     const con = await pool.getConnection(async (conn) => conn);
     console.log("11111111", req.body);
     store_id = req.body["store_id"];
-    month = req.body["interview_month"];
+    // month = req.body["interview_month"];
     result = [];
 
     try{
         let today = new Date();
         year = today.getFullYear();
-        if (!month) month = today.getMonth() + 1;
+        month = today.getMonth() + 1;
         n_day = today.getDate();
 
         interview = {};
@@ -101,14 +101,14 @@ applyRouter.post("/load_interview", async (req, res) => {
             if (interview[date]) {
             // 면접일자별 시간 - 예약완료
             interview[date].push(time);
-            } else {
+            } else { 
             interview[date] = [time];
             }
         }
 
         let yet = today.getHours();
         // console.log('yet',yet);
-        times[n_day].splice(0, hours[yet] + 1);
+        times[n_day].splice(0, hours[yet] + 1); 
         // console.log('yet',times);
 
         for (day = n_day; day <= calendar[month]; day++) {

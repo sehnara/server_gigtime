@@ -27,7 +27,7 @@ signupRouter.post("/", async (req, res, next) => {
   // console.log(req.body);
   const con = await pool.getConnection(async (conn) => conn);
 
-  const location = getDist.getPos(req.body['location']);
+  const location = await getDist.getPos(req.body['location']);
   req.body['latitude'] = location[0];
   req.body['longitude'] = location[1];
 

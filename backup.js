@@ -355,7 +355,11 @@ async function insert_dummy_into_qualifications(worker_id) {
     }
 
     await con.query(sql, [data])
+    con.release();
 }
+
+// insert_dummy_into_qualifications(6);
+
 
 async function getPosition(address) {
     const regionLatLongResult = await geocoder.geocode(address);

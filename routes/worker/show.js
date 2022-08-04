@@ -108,7 +108,7 @@ showRouter.use("/hourly_orders", async (req, res, next) => {
                         INNER JOIN orders B ON A.FK_hourlyorders_orders=B.order_id
                         INNER JOIN stores C ON B.FK_orders_stores=C.store_id
                         INNER JOIN jobs D ON B.FK_orders_jobs=D.job_id
-                        WHERE FK_hourlyorders_orders=${orders[j]["order_id"]}`;
+                        WHERE FK_hourlyorders_orders=${orders[j]["order_id"]} AND A.status=0 AND B.status=0`;
           const [hourly_orders] = await con.query(sql2);
           // console.log(hourly_orders)
           // orders[j]["hourly_orders"] = hourly_orders;

@@ -1,6 +1,7 @@
 const { Router } = require("express");
 const qrCodeRouter = Router();
 const pool = require('../../util/function');
+const push_noti = require("../push");
 
  
 /* 사장님 사장님 최저시급 설정 페이지 */
@@ -30,12 +31,18 @@ qrCodeRouter.post("/", async (req, res) => {
         let minute = Number(time.slice(3, 5));
         console.log(minute);
         let hour = minute>30 ? Number(time.slice(0,2)) + 10 : Number(time.slice(0,2)) + 9;
-        if (hour>24){
+        if (hour>=24){
             hour -= 24;
-            date = date.slice(0, -2) + String(Number(date.slice(-1,-3))+1);
+            // console.log('>>24<<', date);
+            // console.log(date.slice(0, -2))
+            // console.log(date.slice(-2))
+            // console.log(Number(date.slice(-1,-3))+1)
+            date = date.slice(0, -2) + String(Number(date.slice(-2))+1).padStart(2,0);
         }
         let start_time = date + " " + String(hour).padStart(2,0) + ":00:00";
         
+        console.log(date)
+        console.log(String(hour).padStart(2,0) + ":00:00")
         console.log('start_time: ', start_time);
 
         const sql_store = `select store_id from stores where FK_stores_owners = ${owner_id};`;
@@ -61,14 +68,14 @@ qrCodeRouter.post("/", async (req, res) => {
         console.log(angels_work);
          
         if(hourly_work[0]){
-            console.log('hourly');
-            const sql_update_hourly = `update hourly_orders set absent_flag = 1 
-            where FK_hourlyorders_workers = ${worker_id} and hourlyorders_id = ${hourly_work['hourlyorders_id']};`;
+            console.log('hourly', worker_id, hourly_work[0]['hourlyorders_id']);
+            const sql_update_hourly = `update hourly_orders set checkin_flag = 1 
+            where FK_hourlyorders_workers = ${worker_id} and hourlyorders_id = ${hourly_work[0]['hourlyorders_id']};`;
             await con.query(sql_update_hourly);
             success = 'success'
         }else if(angels_work[0]){
             console.log('angels');
-            const sql_update_angel = `update angels set absent_flag = 1 
+            const sql_update_angel = `update angels set checkin_flag = 1 
             where angel_id = ${angels_work[0]['angel_id']} and FK_angels_workers = ${worker_id};`;
             await con.query(sql_update_angel);
             success = 'success'
@@ -76,15 +83,31 @@ qrCodeRouter.post("/", async (req, res) => {
             console.log('not');
             success = 'notFound'
         }
-
         const sql_worker = `select name from workers where worker_id = ${worker_id};`;
         const [worker_info] = await con.query(sql_worker);
-         
-        let result = {
-            success: success,
-            name: worker_info[0]['name']
+        
+        /* success일 때 owner_id 찾아서 push */
+        if (success==='success'){
+            const sql_token = `select FK_permissions_owners, token from permissions 
+                                where FK_permissions_owners = ${owner_id};`;
+            const [token] = await con.query(sql_token);
+    
+            let push_token = token[0]["token"];
+            console.log(push_token);
+            let title = `출석체크`;
+            let info = {
+                worker_name: worker_info[0]['name'],
+            };
+    
+            push_noti(push_token, title, info);
+            console.log("출석완료");
         }
 
+        let result = {
+            success,
+            name: worker_info[0]['name']
+        }
+        /* QR스캔 기기에서 보여주는 정보 */
         console.log(result);
         con.release();
         res.send(result);

@@ -42,8 +42,9 @@ showRouter.post("/hourly_orders", async (req, res, next) => {
 /* 2. worker가 설정한 거리 안에 있는 store 정보를 모두 가져오자 */
 showRouter.use("/hourly_orders", async (req, res, next) => {
   const con = await pool.getConnection(async (conn) => conn);
-  const sql = `SELECT store_id, FK_stores_owners AS owner_id, name, address, latitude, longitude FROM stores`;
+  const sql = `SELECT store_id, FK_stores_owners AS owner_id, name, address, latitude, longitude FROM stores WHERE store_id IN (SELECT FK_qualifications_stores AS store_id FROM qualifications WHERE FK_qualifications_workers='${req.body['worker_id']}')`;
   const [result] = await con.query(sql);
+
   con.release();
 
   let store_list = new Array();

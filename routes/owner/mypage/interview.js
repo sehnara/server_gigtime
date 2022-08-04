@@ -121,12 +121,13 @@ interviewRouter.post("/result", async (req, res) => {
             const sql = `update interviews set state = 5, result_flag = 1 where interview_id = ${interview_id};`;
             const [result] = await con.query(sql);
             
-            // console.log('합격!!!', worker[0]["FK_interviews_workers"], worker[0]["FK_interviews_stores"]);
+            console.log('합격!!!', worker[0]["FK_interviews_workers"], worker[0]["FK_interviews_stores"]);
             const sql_qual = `insert into qualifications (fk_qualifications_workers, FK_qualifications_stores) values(${worker[0]["FK_interviews_workers"]}, ${worker[0]["FK_interviews_stores"]});`;
             const [qual] = await con.query(sql_qual);
 
             /* create chatting room */
             /* 1. interview_id로 worker_id 가져오기 */
+            msg = "interview_id로 worker_id 가져오기";
             console.log("/create 진입");
             console.log(req.body);
             const sql2 = `SELECT FK_interviews_workers AS worker_id FROM interviews WHERE interview_id=${req.body["interview_id"]}`;
@@ -136,30 +137,36 @@ interviewRouter.post("/result", async (req, res) => {
             console.log(result_room);
 
             /* 2. room 테이블에 데이터 삽입 */
-            const sql3 = `INSERT INTO rooms SET identifier=?, last_chat=?, createdAt=?, updatedAt=?`;
-            let identifier =
-            req.body["owner_id"].toString() + "-" + req.body["worker_id"].toString();
-            req.body["identifier"] = identifier;
-            let date = masageDate.masageDateToYearMonthDayHourMinSec(new Date());
-            console.log(req.body);
-            await con.query(sql3, [identifier, "", date, date]);
-            
-            /* 3. room_id 가져오기 */
-            const sql4 = `SELECT room_id
-                        FROM rooms 
-                        WHERE identifier=?`;
-            
-            const [result4] = await con.query(sql4, [req.body['identifier']])
-            req.body['room_id'] = result4[0]['room_id']
-            console.log('3. room_id 가져오기 통과 ', req.body)
-            
-            /* 4. room_participant_lists 테이블에 insert */
-            const sql5 = `INSERT INTO room_participant_lists
+            try {
+                msg = "room 테이블에 데이터 삽입";
+                const sql3 = `INSERT INTO rooms SET identifier=?, last_chat=?, createdAt=?, updatedAt=?`;
+                let identifier =
+                req.body["owner_id"].toString() + "-" + req.body["worker_id"].toString();
+                req.body["identifier"] = identifier;
+                let date = masageDate.masageDateToYearMonthDayHourMinSec(new Date());
+                console.log(req.body);
+                await con.query(sql3, [identifier, "", date, date]);
+                
+                /* 3. room_id 가져오기 */
+                msg = "room_id 가져오기";
+                const sql4 = `SELECT room_id
+                FROM rooms 
+                WHERE identifier=?`;
+                
+                const [result4] = await con.query(sql4, [req.body['identifier']])
+                req.body['room_id'] = result4[0]['room_id']
+                console.log('3. room_id 가져오기 통과 ', req.body)
+                
+                /* 4. room_participant_lists 테이블에 insert */
+                const sql5 = `INSERT INTO room_participant_lists
                         SET FK_room_participant_lists_rooms=?, user_id=?, user_type=?, createdAt=?, updatedAt=?`;
             await con.query(sql5, [req.body['room_id'], req.body['owner_id'], 'owner', date, date]);
             await con.query(sql5, [req.body['room_id'], req.body['worker_id'], 'worker', date, date])
             console.log('4단계까지 완료')
-
+            } catch {
+                console.log('room이 이미 존재합니다.');
+            }
+            
             // console.log('합격!!!');
         }
         // const [result] = await con.query(sql);

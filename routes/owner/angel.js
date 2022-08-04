@@ -295,6 +295,10 @@ angelRouter.post("/info", async (req, res) => {
       type: type,
       name: worker_info[0]["name"],
       dist: dist,
+      store_lat: store_info[0]["latitude"],
+      store_lng: store_info[0]["longitude"],
+      worker_lat: worker_info[0]["latitude"],
+      worker_lng: worker_info[0]["longitude"]
     };
 
     console.log('angel_result!!!!!', result);

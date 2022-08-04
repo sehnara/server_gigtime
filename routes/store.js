@@ -8,29 +8,30 @@ const getDist = require("../util/getDist");
   {
     'worker_id': 1
   } */
-storeerRouter.post("/list", async (req, res) => {
-  const con = await pool.getConnection(async (conn) => conn);
-  try {
-    const sql =
-      "SELECT `latitude`, `longitude`, `range` FROM workers WHERE worker_id=?";
-    /* 1. 해당 worker의 위도, 경도, 거리 설정 정보 가져오기 */
-    const [worker_info] = await con.query(sql, req.body["worker_id"]);
-    // console.log(worker_info);
-
-    /* 2. store 정보 모두 가져오기 */
-    // 내게 권한 없는 정보만 가져와야 한다. 어떻게?
-    const sql2 =
-      "SELECT * FROM stores WHERE store_id NOT IN (SELECT FK_qualifications_stores FROM qualifications WHERE FK_qualifications_workers=?) order by store_id;";
-    const [stores_info] = await con.query(sql2, req.body["worker_id"]);
-    // console.log(stores_info);
-
-    /* 3. 거리 계산해서 send할 배열 생성 */
-    let stores = getStore(
-      worker_info[0]["latitude"],
-      worker_info[0]["longitude"],
-      worker_info[0]["range"],
-      stores_info
-    );
+  storeerRouter.post("/list", async (req, res) => {
+    const con = await pool.getConnection(async (conn) => conn);
+    try {
+      const sql =
+        "SELECT `latitude`, `longitude`, `range` FROM workers WHERE worker_id=?";
+      /* 1. 해당 worker의 위도, 경도, 거리 설정 정보 가져오기 */
+      const [worker_info] = await con.query(sql, req.body["worker_id"]);
+      // console.log(worker_info);
+  
+      let cursor = Number(req.body['cursor']) || 0;
+      /* 2. store 정보 모두 가져오기 */
+      // 내게 권한 없는 정보만 가져와야 한다. 어떻게?
+      const sql2 =
+        `SELECT * FROM stores WHERE store_id>? AND store_id NOT IN (SELECT FK_qualifications_stores FROM qualifications WHERE FK_qualifications_workers=?) order by store_id LIMIT 10`;
+      const [stores_info] = await con.query(sql2, [cursor, req.body["worker_id"]]);
+      // console.log(stores_info);
+  
+      /* 3. 거리 계산해서 send할 배열 생성 */
+      let stores = getStore(
+        worker_info[0]["latitude"],
+        worker_info[0]["longitude"],
+        worker_info[0]["range"],
+        stores_info
+      );
     // console.log(stores);
 
     con.release();

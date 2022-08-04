@@ -159,7 +159,7 @@ messageRouter.use('/loading', async (req, res) => {
     FROM chattings A
     INNER JOIN owners B ON A.send_user_id = B.owner_id
     INNER JOIN workers C ON A.send_user_id = C.worker_id
-    WHERE chatting_id<? AND FK_chattings_rooms=? ORDER BY chatting_id DESC LIMIT 10`
+    WHERE chatting_id<? AND FK_chattings_rooms=? ORDER BY chatting_id DESC LIMIT 40`
     
     let cursor = Number(req.query.cursor) || 9999999999;
     const [result] = await con.query(sql, [cursor, req.query.room_id]);

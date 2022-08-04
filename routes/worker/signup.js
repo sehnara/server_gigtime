@@ -25,6 +25,10 @@ const getDist = require("../../util/getDist");
 signupRouter.post("/", async (req, res, next) => {
   // console.log("aaa");
   // console.log(req.body);
+  // 시연을 위한 임시 제약
+  if (req.body['email'] === 'jhw607@naver.com')
+    req.body['name'] = '왕경업'
+
   const con = await pool.getConnection(async (conn) => conn);
 
   const location = getDist.getPos(req.body['location']);

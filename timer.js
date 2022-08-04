@@ -39,7 +39,7 @@ module.exports = {
             }
             console.log('점검 orders: ', check_list_after_update)
             for (let i = 0; i < check_list_after_update.length; i++) {
-                check_order_status(check_list_after_update[i])
+                await check_order_status(check_list_after_update[i])
             }
             con.release();
         })

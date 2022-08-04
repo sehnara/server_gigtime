@@ -32,8 +32,10 @@ const getDist = require("../util/getDist");
         
         let dist = getDist.getDistance(worker_info[0]["latitude"], worker_info[0]["longitude"], stores_info[0]["latitude"], stores_info[0]["longitude"])
 
-        if (dist < worker_info[0]["range"])
+        if (dist < worker_info[0]["range"]) {
+          stores_info[i]["distance"] = dist
           stores.push(stores_info[0])
+        }
 
         // /* 3. 거리 계산해서 send할 배열 생성 */
         // let stores = getStore(

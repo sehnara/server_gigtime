@@ -20,18 +20,41 @@ const getDist = require("../util/getDist");
       let cursor = Number(req.body['cursor']) || 0;
       /* 2. store 정보 모두 가져오기 */
       // 내게 권한 없는 정보만 가져와야 한다. 어떻게?
-      const sql2 =
-        `SELECT * FROM stores WHERE store_id>? AND store_id NOT IN (SELECT FK_qualifications_stores FROM qualifications WHERE FK_qualifications_workers=?) order by store_id LIMIT 10`;
-      const [stores_info] = await con.query(sql2, [cursor, req.body["worker_id"]]);
-      // console.log(stores_info);
-  
+      // const sql2 =
+      //   `SELECT * FROM stores WHERE store_id>? AND store_id NOT IN (SELECT FK_qualifications_stores FROM qualifications WHERE FK_qualifications_workers=?) order by store_id LIMIT 10`;
+      // const [stores_info] = await con.query(sql2, [cursor, req.body["worker_id"]]);
+
       /* 3. 거리 계산해서 send할 배열 생성 */
-      let stores = getStore(
-        worker_info[0]["latitude"],
-        worker_info[0]["longitude"],
-        worker_info[0]["range"],
-        stores_info
-      );
+      // let stores = getStore(
+      //   worker_info[0]["latitude"],
+      //   worker_info[0]["longitude"],
+      //   worker_info[0]["range"],
+      //   stores_info
+      // );
+
+      const sql2 = `SELECT * FROM stores 
+                    WHERE store_id>? AND store_id NOT IN 
+                    (SELECT FK_qualifications_stores FROM qualifications WHERE FK_qualifications_workers=?) 
+                    order by store_id LIMIT 1`;
+      let stores = new Array();
+      while (1) {
+        if (stores.length === 10) break;
+
+        const [stores_info] = await con.query(sql2, [cursor, req.body["worker_id"]]);
+        if (stores_info.length === 0) break;
+        
+        let dist = getDist.getDistance(worker_info[0]["latitude"], worker_info[0]["longitude"], stores_info[0]["latitude"], stores_info[0]["longitude"])
+
+        if (dist < worker_info[0]["range"]) {
+          stores_info[0]["distance"] = dist
+          stores.push(stores_info[0])
+        }
+        cursor = stores_info[0]['store_id'];
+      }
+
+      // }
+      // console.log(stores_info);
+      
     // console.log(stores);
 
     con.release();

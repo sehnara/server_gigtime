@@ -64,9 +64,7 @@ io.on("connection", (socket) => {
       }
       users[data.room].push({ id: socket.id });
     } else {
-      console.log('혼자있음');
       users[data.room] = [{ id: socket.id }];
-      push_interview.push_worker(data.room, "화상면접 개설", "들어오쎄용");
     }
     socketToRoom[socket.id] = data.room;
 
@@ -212,17 +210,24 @@ io.on("connection", (socket) => {
   });
 });
 
-app.post("/interview", (req, res, next) => {
+app.post("/worker_interview", (req, res, next) => {
+  console.log('>>>>>>>', req.body);
   const interviewId = req.body["interviewId"];
   for (const roomName of Object.values(socketToRoom)) {
     if (parseInt(roomName) === interviewId) {
+      console.log(">>>>>",interviewId, "워커 출입 가능");
       return res.send({ enter: true, room: roomName });
     }
   }
-
+  console.log(">>>>>",  interviewId, "워커 출입 불가능");
   return res.send({ enter: false });
 });
 
+app.post("/owner_interview", (req,res) => {
+  // 푸쉬 작업  
+  push_interview.push_worker(req.body.room, "화상면접 개설", "들어오쎄용");
+  return res.send({status:"success"});
+});
 app.use("/check", checkRouter);
 app.use("/worker", workerRouter);
 app.use("/store", storeerRouter);

@@ -140,7 +140,7 @@ mypageRouter.use('/work', async (req, res, next) => {
 });
 
 /* 마이페이지 - 합격한 곳 */
-/* input  { 'email': 'dngp93@gmail.com' } */
+/* input  { 'worker_id': 1 } */
 
 /* 1. qualifications 테이블에서 worker_id로 FK_qualifications_stores 가져오기 */
 mypageRouter.post("/myStore", async (req, res, next) => {

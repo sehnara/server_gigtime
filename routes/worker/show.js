@@ -96,7 +96,7 @@ showRouter.use("/hourly_orders", async (req, res, next) => {
     // let store_orders = new Array();
     let valid_hourly_orders = new Array();
     for (let i = store_ids_idx; i < store_ids.length; i++) {
-      if (count === 5) break;
+      // if (count === 5) break;
 
       const [orders] = await con.query(sql, store_ids[i]);
       if (orders.length > 0) {

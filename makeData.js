@@ -14,7 +14,7 @@ let util = require("util");
 
 
 /* 실행 시 특정 csv 파일 데이터를 owners, stores 테이블에 insert */
-async function set_owners_and_stores_db() {
+async function setOwnersAndStoresDB() {
     let filePath = path.join(__dirname, "./stores.csv")
     let data = fs.readFileSync(filePath, { encoding: "utf8" });
     // console.log(data)
@@ -59,10 +59,10 @@ async function set_owners_and_stores_db() {
     console.log(insert_into_stores);
     console.log(insert_into_stores);
 
-    insert_dummy_owners_and_stores(insert_into_owners, insert_into_stores) // db에 insert
+    insertDummyInto_owners_and_stores(insert_into_owners, insert_into_stores) // db에 insert
 }
 
-async function insert_dummy_owners_and_stores(owners_data, stores_data) {
+async function insertDummyInto_owners_and_stores(owners_data, stores_data) {
     let len = owners_data.length
     const con = await pool.getConnection(async conn => conn);
     const sql = "INSERT INTO owners (name, email, phone) VALUES ?";
@@ -179,7 +179,7 @@ async function insertDummyInto_store_job_lists() {
 // }
 
 /* 실행 시 의뢰 조건에 맞게 orders, hourlyorders 테이블에 insert */
-async function insert_dummy_into_orders(number) {
+async function insertDummyInto_orders(number) {
     const con = await pool.getConnection(async conn => conn);
 
     let store_id;
@@ -234,8 +234,10 @@ async function insert_dummy_into_orders(number) {
         const sql_get_order_id = `SELECT order_id FROM orders ORDER BY order_id DESC LIMIT 1`
         const [result] = await con.query(sql_get_order_id)
         order_id = result[0]['order_id']
-        start_day = (Math.floor(Math.random() * (30 - 1)) + 1)
-        end_day = (Math.floor(Math.random() * (30 - start_day)) + start_day)
+        start_day = 14
+        end_day = 14
+        // start_day = (Math.floor(Math.random() * (30 - 1)) + 1)
+        // end_day = (Math.floor(Math.random() * (30 - start_day)) + start_day)
         number_of_days = end_day - start_day + 1
 
         start_hour = (Math.floor(Math.random() * (24 - 0)) + 0)
@@ -267,7 +269,7 @@ async function insert_dummy_into_orders(number) {
         console.log('success')
     }
 }
-// insert_dummy_into_orders(1000)
+// insert_dummy_into_orders(10)
 
 async function auto_order() {
     let store_id;
@@ -344,7 +346,7 @@ async function auto_order() {
 }
 
 /* qualifications 테이블에 특정 계정을 마스터로 */
-async function insert_dummy_into_qualifications(worker_id) {
+async function insertDummyInto_qualifications(worker_id) {
     const con = await pool.getConnection(async conn => conn);
     const sql = `INSERT INTO qualifications (FK_qualifications_workers, FK_qualifications_stores) VALUES ?`
     let data = new Array();
@@ -358,7 +360,7 @@ async function insert_dummy_into_qualifications(worker_id) {
     con.release();
 }
 
-// insert_dummy_into_qualifications(6);
+// insertDummyInto_qualifications(6);
 
 
 async function getPosition(address) {
@@ -373,7 +375,7 @@ async function getPosition(address) {
 }
 
 /* 사장님 이름, email을 그럴싸하게 변경해보자 */
-async function update_owners_name () {
+async function updateOwnersName () {
     let first = ['김', '이', '박', '최', '왕', '권', '차', '정', '강', '조', '윤', '장', '임', '한', '오', '서', '신', '황', '안', '송', '전', '홍', '유', '고', '문', '양', '손', '배', '허', '남']
     let second = ['민', '준', '서', '도', '윤', '예', '시', '우', '하', '주', '원', '호', '경', '업', '후', '지', '건', '현', '도', '연', '은', '정', '시', '임', '성', '숙', '남', '복']
     
@@ -399,5 +401,5 @@ async function update_owners_name () {
     con.release()
   
   }
-//   update_owners_name()
+//   updateOwnersName()
   

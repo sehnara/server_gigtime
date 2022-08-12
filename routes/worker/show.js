@@ -40,9 +40,18 @@ showRouter.post("/hourly_orders", async (req, res, next) => {
 });
 
 /* 2. worker가 설정한 거리 안에 있는 store 정보를 모두 가져오자 */
+/* 2022-08-10 23:48 */
+// 여기서 스토어를 모두 가져오지 않고 유효한 5개씩만 가져올 순 없을까
+// stores 테이블에 현재 유효한 공고가 있는지 없는지 표시하는 column이 있다면 가능할 것 같다
+// 첫째로 valid_order_count라는 column을 테이블에 추가하자
+// 둘째로 사장님이 새로운 모집공고를 작성할 때마다 count를 1씩 올려주는 코드를 추가하자
+// 셋째로 order가 모두 예약완료 된 경우 count를 1씩 내려주는 코드를 추가하자
+// 넷째로 order가 만료처리 될 경우 count를 1씩 내려주는 코드를 추가하자. 근데 만약 예약완료되어서 1 내려간 아이를 또 만료처리 하는 경우라면?
+//        order의 status를 확인하자. status가 0이면 count를 내려주고 1이면 pass하면 되겠다!
 showRouter.use("/hourly_orders", async (req, res, next) => {
   const con = await pool.getConnection(async (conn) => conn);
-  const sql = `SELECT store_id, FK_stores_owners AS owner_id, name, address, latitude, longitude FROM stores WHERE store_id IN (SELECT FK_qualifications_stores AS store_id FROM qualifications WHERE FK_qualifications_workers='${req.body['worker_id']}')`;
+  const sql = `SELECT store_id, FK_stores_owners AS owner_id, name, address, latitude, longitude FROM stores 
+               WHERE store_id IN (SELECT FK_qualifications_stores AS store_id FROM qualifications WHERE FK_qualifications_workers='${req.body['worker_id']}')`;
   const [result] = await con.query(sql);
 
   con.release();

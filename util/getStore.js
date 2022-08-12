@@ -20,4 +20,26 @@ async function getStoreIdByOwnerId(owner_id) {
   }
 }
 
+async function getStoreIdByHourlyOrdersId(hourlyorders_id) {
+  const con = await pool.getConnection(async (conn) => conn);
+  const sql = "SELECT FK_hourlyorders_orders AS order_id FROM hourly_orders WHERE hourlyorders_id=?"
+  const [order_id] = await con.query(sql, hourlyorders_id);
+
+  const sql2 = "SELECT FK_orders_stores AS store_id FROM orders WHERE order_id=?"
+  const [store_id] = await con.query(sql2, order_id[0]["order_id"]);
+  console.log(store_id[0]["store_id"]);
+  return store_id[0]["store_id"];
+}
+
+async function getStoreIdByOrderId(order_id) {
+  const con = await pool.getConnection(async (conn) => conn);
+  const sql = "SELECT FK_orders_stores AS store_id FROM orders WHERE order_id=?"
+  const [store_id] = await con.query(sql, order_id);
+
+  console.log(store_id[0]["store_id"]);
+  return store_id[0]["store_id"];
+}
+
 module.exports.getStoreIdByOwnerId = getStoreIdByOwnerId;
+module.exports.getStoreIdByHourlyOrdersId = getStoreIdByHourlyOrdersId;
+module.exports.getStoreIdByOrderId = getStoreIdByOrderId;

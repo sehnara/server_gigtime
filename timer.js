@@ -3,11 +3,13 @@ const app = express();
 const mysql = require('mysql2/promise');
 const pool = require('./util/function');
 const schedule = require('node-schedule');
+let util = require("util");
+const getStore = require("./util/getStore");
 
 module.exports = {
     /* 매 정시마다 실행되며 orders 테이블 status 업데이트 */
     job: async function () { 
-        schedule.scheduleJob('0 0 * * * *', async function() {
+        schedule.scheduleJob('0 * * * * *', async function() {
             const con = await pool.getConnection(async conn => conn);
             let now = new Date();
             now = masageDateToYearMonthDayHourMinSec(now)
@@ -31,6 +33,7 @@ module.exports = {
                 // 여기서 status 변경처리 하면됨
                 if (result[i]['status'] === 0) {
                     await con.query(sql2, [2, result[i]['hourlyorders_id']])
+                    // 여기서 
                 } else {
                     await con.query(sql2, [3, result[i]['hourlyorders_id']])
                 }
@@ -97,8 +100,19 @@ async function check_order_status(order_id) {
         /* orders table의 status 업데이트 */
         // - 0: 매칭 전, 1: 매칭 성공, 2: 매칭 실패 후 종료, 3: 매칭 성공 후 종료
         const sql2 = `UPDATE orders SET status=? WHERE order_id=?`;        
-        if (status[0]['status'] === 0) // 매칭 실패라면
+        if (status[0]['status'] === 0) { // 매칭 실패라면
             await con.query(sql2, [2, order_id]);
+
+            // valid_order_count 처리 추가
+            let store_id = await getStore.getStoreIdByOrderId(order_id);
+            console.log(store_id);
+            /* stores table의 vaild_order_count -= 1 처리 */
+            // 를 위해서는 store_id부터 가져와야 됨
+            // -1 처리되는 것까지 확인 완료
+            const sql3 = `UPDATE stores SET valid_order_count = valid_order_count - 1 
+                          WHERE store_id='${store_id}'`
+            await con.query(sql3);
+        }
         else // 매칭 성공이라면
             await con.query(sql2, [3, order_id])
         console.log(order_id,': status update complete!');

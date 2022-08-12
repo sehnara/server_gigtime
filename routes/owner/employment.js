@@ -24,35 +24,28 @@ const masageDate = require("../../util/masageDate");
 // employmentRouter.post('/owner/employment', getOwnerIdByEmail, async (req, res, next) => { next(); })
 
 employmentRouter.post("/", async (req, res, next) => {
-  console.log("aa", req.body);
   const con = await pool.getConnection(async (conn) => conn);
 
   try {
     /* 2. stores 테이블에서 owner_id로 store_id 가져오기 */
     const store_id = await getStore.getStoreIdByOwnerId(req.body["owner_id"]);
-    console.log("###", store_id);
     if (store_id === -1) {
       throw "error: getStoreIdByOwnerId returned -1";
     }
+    console.log('store_id: ', store_id);
+    req.body['store_id'] = store_id;
+
     /* 3. jobs 테이블에서 type으로 job_id 가져오기 */
     const job_id = await getJob.getJobIdByType(req.body["type"]);
-    console.log("####", job_id);
     if (job_id === -1) {
       throw "error: getJobIdByType returned -1";
     }
 
-    console.log(store_id, job_id);
     /* 4. orders 테이블에 INSERT */
     const sql =
       "INSERT INTO orders SET FK_orders_stores=?, request_date=?, FK_orders_jobs=?, description=?, min_price=?, status=?";
     let request_date = new Date();
-    console.log(
-      store_id,
-      request_date,
-      job_id,
-      req.body["description"],
-      req.body["price"]
-    );
+
     await con.query(sql, [
       store_id,
       request_date,
@@ -96,8 +89,10 @@ employmentRouter.use("/", async (req, res, next) => {
 });
 
 /* 6. hourly_orders 테이블에 INSERT */
-employmentRouter.use("/", async (req, res) => {
+employmentRouter.use("/", async (req, res, next) => {
   const con = await pool.getConnection(async (conn) => conn);
+
+  console.log("req.body: ", req.body);
 
   /* 6-1. 총 일수 계산 */
   let start_date = new Date(req.body["start_date"]);
@@ -108,6 +103,8 @@ employmentRouter.use("/", async (req, res) => {
   let start_hour = Number(req.body["start_time"].split(":")[0]);
   let end_hour = Number(req.body["end_time"].split(":")[0]);
   let hour = end_hour - start_hour;
+  console.log("start_hour: ", start_hour);
+  console.log("end_hour: ", end_hour);
 
   /* 6-3. for문 돌면서 hourly_orders 테이블에 INSERT */
   try {
@@ -149,13 +146,24 @@ employmentRouter.use("/", async (req, res) => {
     console.log(insert_array);
     await con.query(sql, [insert_array]);
     con.release();
-    res.send("success");
+    next();
+    // res.send("success");
   } catch {
     con.release();
     console.log("error 6");
     res.send("error");
   }
 });
+
+/* 7. stores 테이블의 valid_order_count 1 증가처리 */
+employmentRouter.use("/", async (req, res) => {
+  const con = await pool.getConnection(async (conn) => conn);
+  const sql = `UPDATE stores SET valid_order_count=valid_order_count+1 WHERE store_id=?`;
+  await con.query(sql, req.body['store_id']);
+  con.release();
+
+  res.send("success");
+})
 
 module.exports = employmentRouter;
 

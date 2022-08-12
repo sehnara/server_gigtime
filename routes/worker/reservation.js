@@ -2,6 +2,8 @@ const { Router } = require('express');
 const reservationRouter = Router();
 const pool = require('../../util/function');
 const masageDate = require('../../util/masageDate');
+let util = require("util");
+const getStore = require("../../util/getStore");
 
 
 /* 알바 예약 페이지 */
@@ -90,13 +92,13 @@ reservationRouter.post('/save', async (req, res, next) => {
 reservationRouter.use('/save', async (req, res) => {
     // console.log(req.body)
     const con = await pool.getConnection(async conn => conn);
-    const sql = "UPDATE hourly_orders SET FK_hourlyorders_workers=?, closing_time=? WHERE hourlyorders_id=?";
+    const sql = "UPDATE hourly_orders SET FK_hourlyorders_workers=?, closing_time=?, status=? WHERE hourlyorders_id=?";
     try{
         for (let i = 0; i < req.body['hourlyorder_id'].length; i++) {
             let tmp = new Date().getTime();
             let timestamp = new Date(tmp);
             /* check! 쿼리를 한 번만 실행해서 해당 column 모두 UPDATE 하는 방법은? */
-            await con.query(sql, [req.body['worker_id'], timestamp, req.body['hourlyorder_id'][i]]); 
+            await con.query(sql, [req.body['worker_id'], timestamp, 1, req.body['hourlyorder_id'][i]]); 
         }
         check_all_hourlyorders_true(req.body['hourlyorder_id'][0]);
         con.release();
@@ -137,7 +139,7 @@ async function check_all_hourlyorders_true(hourlyorders_id) {
     const [result] = await con.query(sql, hourlyorders_id);
     let order_id = result[0]['FK_hourlyorders_orders'];
         
-    /* 이제 order_id에 해당하는 hourly_order를 모두 SELECT (아직 예약되지 않은 것만) */ 
+    /* 이제 order_id에 해당하는 hourly_order를 모두 SELECT (아직 예약되지 않은 것만) */
     const sql2 = `SELECT * FROM hourly_orders WHERE FK_hourlyorders_orders=? AND closing_time IS Null`
     const [result2] = await con.query(sql2, order_id); 
   
@@ -151,6 +153,14 @@ async function check_all_hourlyorders_true(hourlyorders_id) {
         } catch {
             console.log('error');
         }
+        let store_id = await getStore.getStoreIdByHourlyOrdersId(hourlyorders_id);
+        console.log(store_id);
+        /* stores table의 vaild_order_count -= 1 처리 */
+        // 를 위해서는 store_id부터 가져와야 됨
+        // -1 처리되는 것까지 확인 완료
+        const sql4 = `UPDATE stores SET valid_order_count = valid_order_count - 1 
+                      WHERE store_id='${store_id}'`
+        await con.query(sql4);
     }
     con.release();
 };
